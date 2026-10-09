@@ -8,6 +8,8 @@ Softphone SIP para Windows da **Upp Tecnologia**, baseado no [MicroSIP](https://
 - Configurações fixas no código (sem tela de configurações), veja `AccountSettings::SettingsLoad` em `settings.cpp`
 - Sem atualização automática, sem envio de relatórios de travamento e sem prazo de validade
 
+Histórico do projeto, decisões e pendências: [docs/HISTORICO.md](docs/HISTORICO.md).
+
 ## Estrutura
 
 Este repositório é a pasta do aplicativo. Para compilar, ele precisa ficar **dentro** do pjproject:
