@@ -70,6 +70,21 @@ Opções úteis:
 | `-PfxPath arquivo.pfx -PfxPassword (Read-Host -AsSecureString)` | assina com um certificado .pfx |
 | `-CertThumbprint <hash>` | assina com um certificado instalado ou em token |
 
+## Publicar uma versão
+
+1. Troque a versão em `const.h` (`_GLOBAL_VERSION` e `_GLOBAL_VERSION_COMMA`).
+2. Crie as notas em `build\notas\v<versão>.md` (copie as da versão anterior e ajuste).
+3. Compile e teste: `.\build.ps1 -Installer` (com `-PfxPath`/`-CertThumbprint` quando houver certificado).
+4. Faça o commit e o `git push`.
+5. Confira e publique:
+
+```powershell
+.\release.ps1 -DryRun   # só confere, não publica nada
+.\release.ps1           # cria a release e a tag v<versão> no commit atual e envia os arquivos
+```
+
+O `release.ps1` se recusa a publicar com alterações não commitadas, com commits que ainda não foram para o GitHub ou com `.exe` de outra versão. Ele envia os dois instaladores, os dois portáteis em ZIP e o `SHA256SUMS.txt`. Se cair no meio, é só rodar de novo: os arquivos que já estão na release são pulados. Para autenticar, ele usa a variável `GITHUB_TOKEN` ou, se ela não existir, o login que o git já guardou para o github.com.
+
 ## Tema
 
 O app segue a opção do Windows "Escolha o modo de aplicativo padrão" e troca de tema ao vivo. Para forçar um modo (testes ou suporte), defina a variável de ambiente `UPPHONE_THEME=light` ou `UPPHONE_THEME=dark`.
