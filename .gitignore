@@ -1,0 +1,32 @@
+# build output
+/Release/
+/Debug/
+/x64/
+/microsip/
+/dist/
+*.obj
+*.pch
+*.pdb
+*.ilk
+*.exp
+*.iobj
+*.ipdb
+*.tlog
+*.res
+*.aps
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.sdf
+*.opendb
+*.VC.db
+
+# dados do usuario gerados ao rodar o app (contem senha do ramal!)
+*.ini
+*.db
+Contacts.xml
+*_log.txt
+crash-dump_*
+block_*.dat
