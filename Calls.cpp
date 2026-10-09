@@ -91,6 +91,8 @@ BOOL Calls::OnInitDialog()
     list->InsertColumn(MSIP_CALLS_COL_TIME, Translate(_T("Time")), LVCFMT_LEFT, accountSettings.callsWidth2 > 0 ? accountSettings.callsWidth2 : 135);
     list->InsertColumn(MSIP_CALLS_COL_DURATION, Translate(_T("Duration")), LVCFMT_LEFT, accountSettings.callsWidth3 > 0 ? accountSettings.callsWidth3 : 70);
     list->InsertColumn(MSIP_CALLS_COL_INFO, Translate(_T("Information")), LVCFMT_LEFT, accountSettings.callsWidth4 > 0 ? accountSettings.callsWidth4 : 120);
+    // Upphone: columns fitted to the window width (Duration and Information give way first)
+    m_list.FitColumnsEnable({ 80, 70, 64, 56, 80 });
 
     CString filename = accountSettings.pathRoaming + _T("call_log.db");
     static Database db(CStringToUtf8(filename));
@@ -203,6 +205,7 @@ void Calls::OnEndtrack(NMHDR* pNMHDR, LRESULT* pResult)
         accountSettings.callsWidth4 = width;
         break;
     }
+    m_list.FitColumnsTrack(phdn->iItem, width); // Upphone
     mainDlg->AccountSettingsPendingSave();
     *pResult = 0;
 }

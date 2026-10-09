@@ -99,6 +99,11 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
     - README e LICENSE (GPL v3).
 25. **Versões fixadas.** `build/pins.ps1` e `build/setup.ps1`, testados com um build do zero a partir do GitHub.
 26. **Release v1.0.0 publicada** e script `build/release.ps1` para as próximas.
+27. **Telas de chamada e listas no tema** (depois da 1.0.0). Revisadas nos temas claro e escuro, em 125% de escala.
+    - Chamada recebida: Atender em laranja e Recusar em vermelho, como Chamar e Terminar chamada (`RinginDlg`).
+    - Janela de mensagens: as abas (`CClosableTabCtrl`) são desenhadas no tema, com o "x" de fechar e as setas de rolagem próprias; o histórico e o campo de texto têm a borda e a barra de rolagem do tema.
+    - Registros e Contatos: as colunas ocupam a largura da lista, sem barra horizontal. Quando a janela é estreita, as últimas colunas (Duração, Informação) ficam ocultas e voltam ao alargar; arrastar uma divisória muda a proporção (`CListCtrl_Sortable::FitColumnsEnable`).
+    - Seta de ordenação desenhada à direita do nome da coluna (`ThemeSetListSort`), porque a do tema do Windows fica no topo do cabeçalho, colada nas abas.
 
 ---
 
@@ -123,19 +128,22 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
 
 | Arquivo | O que tem |
 |---|---|
-| `Theme.h/.cpp` | Paleta claro/escuro, leitura do modo do Windows, `UPPHONE_THEME` |
+| `Theme.h/.cpp` | Paleta claro/escuro, leitura do modo do Windows, `UPPHONE_THEME`, coluna ordenada das listas |
 | `define.h` | `_GLOBAL_BRAND_ACCENT`, macros `_GLOBAL_THEME_*`, links upphone.com.br, nome "Upphone SIP" |
 | `const.h` | Versão 1.0.0, timestamp, empresa, vídeo desligado |
-| `ThemeDialog.h/.cpp` | Cores dos controles (`OnCtlColor`), borda dos campos, cabeçalho das listas, troca de tema ao vivo |
+| `ThemeDialog.h/.cpp` | Cores dos controles (`OnCtlColor`), borda dos campos e do chat, cabeçalho e seta de ordenação das listas, troca de tema ao vivo |
+| `ClosableTabCtrl.h/.cpp` | Abas da janela de mensagens desenhadas no tema, botão de fechar e setas de rolagem |
+| `CListCtrl_Sortable.h/.cpp` | Colunas ajustadas à largura da lista, seta de ordenação via `ThemeSetListSort` |
+| `RinginDlg.h/.cpp` | Cores dos botões Atender e Recusar |
 | `DarkTabCtrl.h/.cpp` | Abas desenhadas (`CDarkTabCtrl`) e botão de menu ▼ (`CDarkArrowButton`) |
 | `ButtonDialer.cpp` | Teclas do discador |
 | `ButtonBottom.*`, `ButtonEx.*` | Botões DND/AA e Chamar |
 | `StatusBar.*` | Barra de status desenhada |
 | `LevelsSliderCtrl.cpp` | Sliders de volume |
 | `BaseDialog.*` | `FitSearchIcon` (lupa da busca) |
-| `Calls.cpp`, `Contacts.cpp` | Lupa, fundo dos ícones |
+| `Calls.cpp`, `Contacts.cpp` | Lupa, fundo dos ícones, larguras mínimas das colunas |
 | `Dialer.cpp` | Sem CONF/REC, cores do botão Chamar, sliders |
-| `MessagesDlg.cpp` | Cores do chat |
+| `MessagesDlg.cpp` | Cores do chat, espaço para o botão de fechar nas abas |
 | `mainDlg.h/.cpp` | Abas, menu, altura fixa, páginas sem espaço vazio, sem atualização do MicroSIP, biblioteca do pjproject por arquitetura, `bcg729.lib` |
 | `microsip.cpp` | Menus no tema do sistema, sem relatório de travamento, sem prazo de validade |
 | `settings.cpp` | Codecs, migração `microsip.ini` → `Upphone.ini` |
@@ -163,6 +171,7 @@ Várias alterações em arquivos do MicroSIP estão marcadas com `// Upphone:` (
 - **SmartScreen:** "Mais informações → Executar assim mesmo".
 - **Duas cópias abertas** (portátil e instalada) entram em conflito, porque o app aceita uma só instância.
 - **Inicialização automática:** o app sempre se registra em `HKCU\...\Run` com o caminho do `.exe` que está rodando. Ao testar outro build, o registro passa a apontar para ele.
+- **Testar telas de chamada sem PABX:** o app pode ligar para ele mesmo (`sip:teste@127.0.0.1`) para abrir a chamada recebida. Para uma chamada em andamento estável, use um atendedor SIP local que responda 200 OK. Envie os comandos (número, `/answer`, `/hangupall`) por `WM_COPYDATA` à janela de classe `MicroSIP` do processo `Upphone`: pela linha de comando o app chama `SetForegroundWindow`, e o `Start-Process` do PowerShell 5.1 altera os argumentos (`/minimized` vira um "Número inválido").
 
 ---
 
@@ -171,16 +180,19 @@ Várias alterações em arquivos do MicroSIP estão marcadas com `// Upphone:` (
 Em ordem de prioridade:
 
 1. **Teste de chamada real** no PABX: áudio nos dois sentidos e G.729 forçado no ramal.
-2. **Revisar no tema** as telas que ainda não foram vistas: chamada recebida, chamada em andamento (Espera, Transferir, Mudo) e janela de mensagens. A janela de mensagens ainda usa `CClosableTabCtrl`, que não é desenhado no tema.
-3. **Assinatura digital.** Recomendado: Microsoft Trusted Signing (Azure Artifact Signing), cerca de US$ 10 por mês e reconhecido pelo Controle Inteligente de Aplicativos. Alternativa: certificado OV/EV de uma autoridade (DigiCert, Sectigo). O `build.ps1` já assina com `-PfxPath` ou `-CertThumbprint`; com o Trusted Signing será preciso adaptar.
-4. **Escala de tela** de 125% e 150%: só foi testado em 100%.
-5. **Detalhes visuais** nas listas: barra de rolagem horizontal (as colunas são mais largas que a janela) e seta de ordenação colada nas abas.
-6. **Integrações sugeridas:**
+2. **Assinatura digital.** Recomendado: Microsoft Trusted Signing (Azure Artifact Signing), cerca de US$ 10 por mês e reconhecido pelo Controle Inteligente de Aplicativos. Alternativa: certificado OV/EV de uma autoridade (DigiCert, Sectigo). O `build.ps1` já assina com `-PfxPath` ou `-CertThumbprint`; com o Trusted Signing será preciso adaptar.
+3. **Escala de tela** de 150%: 100% e 125% já foram testados.
+4. **Detalhes visuais restantes** (vistos na revisão do item 27 da seção 3):
+   - botões Espera e Mudo ligados ficam em cinza do Windows, sem o laranja de destaque;
+   - teclado do diálogo Transferir com botões padrão, diferentes das teclas do discador;
+   - "Call on Local Hold" sem tradução no langpack;
+   - na barra de status, a Espera aparece sem ícone.
+5. **Integrações sugeridas:**
    - abrir a ficha do cliente quando o telefone toca: o app já tem os ganchos `cmdIncomingCall`, `cmdCallAnswer` etc., que podem chamar um webhook do n8n e, a partir dele, um CRM ou helpdesk;
    - click-to-call (`tel:`/`sip:`);
    - provisionamento automático da conta;
    - atualização automática própria, apontando para upphone.com.br.
-7. **Opcionais:** TLS/SRTP (exige OpenSSL) e Opus.
+6. **Opcionais:** TLS/SRTP (exige OpenSSL) e Opus.
 
 ---
 

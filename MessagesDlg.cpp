@@ -468,7 +468,7 @@ MessagesContact* MessagesDlg::AddTab(CString address, BOOL activate, pjsua_call_
         }
         user_data->CS.Unlock();
     }
-    tabName = _T("   ") + tabName + _T("  ");
+    tabName = _T("   ") + tabName + _T("    "); // Upphone: room for the close button drawn by CClosableTabCtrl
     TCITEM item;
     item.pszText = const_cast<LPTSTR>(tabName.GetString());
     item.cchTextMax = 0;

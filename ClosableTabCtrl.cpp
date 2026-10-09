@@ -31,6 +31,9 @@ BEGIN_MESSAGE_MAP(CClosableTabCtrl, CTabCtrl)
 	ON_WM_ERASEBKGND()
 	ON_WM_MEASUREITEM()
 	ON_WM_MEASUREITEM_REFLECT()
+	ON_WM_PAINT()
+	ON_WM_MOUSEMOVE()
+	ON_MESSAGE(WM_MOUSELEAVE, OnMouseLeave)
 END_MESSAGE_MAP()
 
 CClosableTabCtrl::CClosableTabCtrl()
@@ -137,28 +140,10 @@ void CClosableTabCtrl::OnLButtonDown(UINT nFlags, CPoint point)
 	if (m_bCloseable)
 	{
 		int iTab = GetTabUnderPoint(point);
-		if (iTab != -1)
-		{
-			CRect rcItem;
-			GetItemRect(iTab, rcItem);
-			rcItem.InflateRect(2, 2); // get the real tab item rect
-			
-			bool bVistaThemeActive = IsVistaThemeActive();
-			CRect rcCloseButton;
-			GetCloseButtonRect(iTab, rcItem, rcCloseButton, iTab == GetCurSel(), bVistaThemeActive);
-
-			// The visible part of our close icon is one pixel less on each side
-			if (!bVistaThemeActive) {
-				rcCloseButton.top += 1;
-				rcCloseButton.left += 1;
-				rcCloseButton.right -= 1;
-				rcCloseButton.bottom -= 1;
-			}
-
-			if (rcCloseButton.PtInRect(point)) {
-				iTabClose = iTab;
-				return;
-			}
+		// Upphone: same close button rect as OnPaint
+		if (iTab != -1 && GetThemedCloseRect(iTab).PtInRect(point)) {
+			iTabClose = iTab;
+			return;
 		}
 	}
 	
@@ -558,7 +543,7 @@ HBRUSH CClosableTabCtrl::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
 // Vista: Can not be used to workaround the problems with owner drawn tab control
 BOOL CClosableTabCtrl::OnEraseBkgnd(CDC* pDC)
 {
-	return CTabCtrl::OnEraseBkgnd(pDC);
+	return TRUE; // Upphone: OnPaint fills everything
 }
 
 BOOL CClosableTabCtrl::DeleteItem(int nItem)
@@ -572,4 +557,206 @@ BOOL CClosableTabCtrl::DeleteItem(int nItem)
 bool CClosableTabCtrl::IsVistaThemeActive() const
 {
 	return g_xpStyle.IsThemeActive() && g_xpStyle.IsAppThemed();
+}
+
+// Upphone: left/right scroll arrows of the tabs in the app theme (no dark theme for up-down controls)
+static void DrawSpinHalf(HDC hdc, const RECT& rc, bool right, bool enabled)
+{
+	HBRUSH face = CreateSolidBrush(_GLOBAL_THEME_SURFACE);
+	FillRect(hdc, &rc, face);
+	DeleteObject(face);
+	HBRUSH frame = CreateSolidBrush(_GLOBAL_THEME_BORDER);
+	FrameRect(hdc, &rc, frame);
+	DeleteObject(frame);
+	int h = (rc.bottom - rc.top) * 2 / 5;
+	int w = h / 2;
+	int cx = (rc.left + rc.right) / 2;
+	int cy = (rc.top + rc.bottom) / 2;
+	POINT pts[3];
+	if (right) {
+		pts[0] = { cx - w / 2, cy - h / 2 };
+		pts[1] = { cx + w / 2 + 1, cy };
+		pts[2] = { cx - w / 2, cy + h / 2 };
+	}
+	else {
+		pts[0] = { cx + w / 2, cy - h / 2 };
+		pts[1] = { cx - w / 2 - 1, cy };
+		pts[2] = { cx + w / 2, cy + h / 2 };
+	}
+	COLORREF color = enabled ? _GLOBAL_THEME_TEXT : _GLOBAL_THEME_BORDER;
+	HPEN pen = CreatePen(PS_SOLID, MulDiv(1, dpiY, 96), color);
+	HGDIOBJ oldPen = SelectObject(hdc, pen);
+	Polyline(hdc, pts, 3);
+	SelectObject(hdc, oldPen);
+	DeleteObject(pen);
+}
+
+static LRESULT CALLBACK ThemedSpinSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+	switch (uMsg) {
+	case WM_ERASEBKGND:
+		return 1;
+	case WM_PAINT: {
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		RECT rc;
+		GetClientRect(hWnd, &rc);
+		int lower = 0, upper = 0;
+		::SendMessage(hWnd, UDM_GETRANGE32, (WPARAM)&lower, (LPARAM)&upper);
+		int pos = (int)::SendMessage(hWnd, UDM_GETPOS32, 0, NULL);
+		RECT left = rc, right = rc;
+		left.right = right.left = (rc.left + rc.right) / 2;
+		DrawSpinHalf(hdc, left, false, pos > lower);
+		DrawSpinHalf(hdc, right, true, pos < upper);
+		EndPaint(hWnd, &ps);
+		return 0;
+	}
+	case WM_LBUTTONDOWN:
+	case WM_LBUTTONUP: {
+		// the control repaints itself with the system theme on clicks, repaint ours after it
+		LRESULT res = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+		InvalidateRect(hWnd, NULL, FALSE);
+		return res;
+	}
+	case WM_NCDESTROY:
+		RemoveWindowSubclass(hWnd, ThemedSpinSubclassProc, uIdSubclass);
+		break;
+	}
+	return DefSubclassProc(hWnd, uMsg, wParam, lParam);
+}
+
+// Upphone: close button at the right of the tab, vertically centered
+CRect CClosableTabCtrl::GetThemedCloseRect(int iItem)
+{
+	CRect rcItem;
+	GetItemRect(iItem, &rcItem);
+	int size = MulDiv(16, dpiY, 96);
+	int pad = MulDiv(2, dpiY, 96);
+	int top = rcItem.top + (rcItem.Height() - size) / 2;
+	return CRect(rcItem.right - pad - size, top, rcItem.right - pad, top + size);
+}
+
+void CClosableTabCtrl::OnMouseMove(UINT nFlags, CPoint point)
+{
+	TCHITTESTINFO hit = { point, 0 };
+	int item = HitTest(&hit);
+	bool hotClose = item != -1 && m_bCloseable && GetThemedCloseRect(item).PtInRect(point);
+	if (item != m_hotItem || hotClose != m_hotClose) {
+		m_hotItem = item;
+		m_hotClose = hotClose;
+		Invalidate(FALSE);
+		TRACKMOUSEEVENT tme = { sizeof(tme), TME_LEAVE, m_hWnd, 0 };
+		TrackMouseEvent(&tme);
+	}
+	CTabCtrl::OnMouseMove(nFlags, point);
+}
+
+LRESULT CClosableTabCtrl::OnMouseLeave(WPARAM wParam, LPARAM lParam)
+{
+	if (m_hotItem != -1 || m_hotClose) {
+		m_hotItem = -1;
+		m_hotClose = false;
+		Invalidate(FALSE);
+	}
+	return 0;
+}
+
+// Upphone: tabs in the app theme, like CDarkTabCtrl in the main window
+void CClosableTabCtrl::OnPaint()
+{
+	CPaintDC paintDC(this);
+	CRect client;
+	GetClientRect(&client);
+
+	// the scroll arrows shown when the tabs do not fit are a child up-down control
+	HWND hSpin = ::FindWindowEx(m_hWnd, NULL, UPDOWN_CLASS, NULL);
+	if (hSpin && hSpin != m_hSpin) {
+		SetWindowSubclass(hSpin, ThemedSpinSubclassProc, 1, 0);
+		::InvalidateRect(hSpin, NULL, TRUE);
+		m_hSpin = hSpin;
+	}
+
+	// double buffering to avoid flicker
+	CDC dc;
+	dc.CreateCompatibleDC(&paintDC);
+	CBitmap bmp;
+	bmp.CreateCompatibleBitmap(&paintDC, client.Width(), client.Height());
+	CBitmap* oldBmp = dc.SelectObject(&bmp);
+
+	dc.FillSolidRect(client, _GLOBAL_THEME_BG);
+	CFont* oldFont = dc.SelectObject(GetFont());
+	dc.SetBkMode(TRANSPARENT);
+
+	int line = MulDiv(2, dpiY, 96);
+	int pad = MulDiv(4, dpiY, 96);
+	CImageList* imageList = GetImageList();
+	int sel = GetCurSel();
+	int count = GetItemCount();
+	for (int i = 0; i < count; i++) {
+		CRect rect;
+		GetItemRect(i, &rect);
+		if (rect.right <= client.left || rect.left >= client.right) {
+			continue; // scrolled out of view
+		}
+		TCHAR label[256] = { 0 };
+		TCITEM tci = { 0 };
+		tci.mask = TCIF_TEXT | TCIF_IMAGE | TCIF_STATE;
+		tci.pszText = label;
+		tci.cchTextMax = _countof(label);
+		tci.dwStateMask = TCIS_HIGHLIGHTED;
+		GetItem(i, &tci);
+		bool selected = i == sel;
+		bool hot = i == m_hotItem;
+
+		if (selected) {
+			dc.FillSolidRect(rect, _GLOBAL_THEME_SURFACE);
+			dc.FillSolidRect(CRect(rect.left, rect.bottom - line, rect.right, rect.bottom), _GLOBAL_BRAND_ACCENT);
+		}
+		else if (hot) {
+			dc.FillSolidRect(rect, _GLOBAL_THEME_SURFACE_HOT);
+		}
+
+		CRect content(rect);
+		content.DeflateRect(pad, 0);
+		if (tci.iImage >= 0 && imageList && imageList->m_hImageList) {
+			IMAGEINFO ii;
+			imageList->GetImageInfo(tci.iImage, &ii);
+			int iw = ii.rcImage.right - ii.rcImage.left;
+			int ih = ii.rcImage.bottom - ii.rcImage.top;
+			imageList->Draw(&dc, tci.iImage, CPoint(content.left, rect.top + (rect.Height() - ih) / 2), ILD_TRANSPARENT);
+			content.left += iw + pad;
+		}
+
+		bool closeable = m_bCloseable && !GetParent()->SendMessage(UM_QUERYTAB, i);
+		if (closeable) {
+			CRect rc = GetThemedCloseRect(i);
+			if (hot && m_hotClose) {
+				dc.FillSolidRect(rc, _GLOBAL_THEME_BORDER);
+			}
+			// "x" drawn with lines so it follows the theme colors
+			int inset = rc.Width() * 5 / 16;
+			CPen pen(PS_SOLID, MulDiv(1, dpiY, 96), selected || hot ? _GLOBAL_THEME_TEXT : _GLOBAL_THEME_TEXT2);
+			CPen* oldPen = dc.SelectObject(&pen);
+			dc.MoveTo(rc.left + inset, rc.top + inset);
+			dc.LineTo(rc.right - inset, rc.bottom - inset);
+			dc.MoveTo(rc.right - inset - 1, rc.top + inset);
+			dc.LineTo(rc.left + inset - 1, rc.bottom - inset);
+			dc.SelectObject(oldPen);
+			content.right = rc.left - line;
+		}
+
+		// labels are padded with spaces in MessagesDlg::AddTab; '&' is doubled there, so no DT_NOPREFIX
+		CString text(label);
+		text.Trim();
+		COLORREF color = selected ? _GLOBAL_THEME_TEXT : _GLOBAL_THEME_TEXT2;
+		if (tci.dwState & TCIS_HIGHLIGHTED) {
+			color = _GLOBAL_BRAND_ACCENT; // unread message
+		}
+		dc.SetTextColor(color);
+		dc.DrawText(text, content, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_END_ELLIPSIS);
+	}
+
+	dc.SelectObject(oldFont);
+	paintDC.BitBlt(0, 0, client.Width(), client.Height(), &dc, 0, 0, SRCCOPY);
+	dc.SelectObject(oldBmp);
 }
