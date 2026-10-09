@@ -4,8 +4,9 @@
 
 .DESCRIPTION
     Etapas, para cada plataforma pedida:
-      1. pjproject (libpjproject Release-Static)
+      1. bcg729 (G.729) e pjproject (libpjproject Release-Static)
       2. SQLite + SQLiteCpp (bibliotecas estaticas)
+         (versoes fixadas em pins.ps1)
       3. Upphone.exe
       4. Copia para dist\<versao>\<plataforma>\ (versao portatil)
       5. Assinatura digital (se houver certificado)
@@ -22,6 +23,8 @@ param(
     [string[]]$Platforms = @('Win32', 'x64'),
     [switch]$Installer,
     [switch]$SkipPjproject,
+    # aceita um pjproject em commit diferente do fixado em pins.ps1 (nao use para releases)
+    [switch]$AllowOtherPjproject,
     # Assinatura: use um .pfx OU a impressao digital de um certificado instalado (inclusive token USB EV)
     [string]$PfxPath,
     [SecureString]$PfxPassword,
@@ -30,6 +33,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'pins.ps1')
 
 $AppDir  = Split-Path -Parent $PSScriptRoot          # ...\pjproject\microsip
 $PjDir   = Split-Path -Parent $AppDir                 # ...\pjproject
@@ -75,8 +79,18 @@ function Invoke-MSBuild($project, $configuration, $platform) {
 
 # ---------------------------------------------------------------- pre-requisitos
 if (-not (Test-Path (Join-Path $PjDir 'pjsip-apps\build\libpjproject.vcxproj'))) {
-    throw "Este repositorio deve estar dentro do pjproject, como <pjproject>\microsip. Veja o README."
+    throw "Este repositorio deve estar dentro do pjproject, como <pjproject>\microsip. Use build\setup.ps1 (veja o README)."
 }
+$pjHead = Get-GitHead $PjDir
+if (-not $pjHead) {
+    Write-Warning "pjproject em $PjDir nao e um clone git: nao da para conferir se esta no commit fixado ($($Pins.pjproject.Commit)). Para um build reproduzivel use build\setup.ps1."
+}
+elseif ($pjHead -ne $Pins.pjproject.Commit) {
+    $msg = "pjproject esta no commit $pjHead, mas o fixado em pins.ps1 e $($Pins.pjproject.Commit)."
+    if ($AllowOtherPjproject) { Write-Warning $msg }
+    else { throw "$msg Rode 'git -C $PjDir checkout $($Pins.pjproject.Commit)' ou use -AllowOtherPjproject." }
+}
+Write-Host "pjproject     : $(if ($pjHead) { $pjHead } else { 'sem git' })"
 # config_site.h versionado neste repositorio -> pjproject
 $configSite = Join-Path $PjDir 'pjlib\include\pj\config_site.h'
 $configSiteRepo = Join-Path $PSScriptRoot 'pjproject\config_site.h'
@@ -85,12 +99,9 @@ if (-not (Test-Path $configSite) -or ((Get-FileHash $configSite).Hash -ne (Get-F
     Copy-Item $configSiteRepo $configSite -Force
 }
 
+Step 'Dependencias (versoes fixas em pins.ps1)'
 $sqliteSrc = Join-Path $TpDir 'SQLiteCpp-src'
-if (-not (Test-Path $sqliteSrc)) {
-    Step 'Baixando SQLiteCpp'
-    git clone --depth 1 https://github.com/SRombauts/SQLiteCpp.git $sqliteSrc
-    if ($LASTEXITCODE -ne 0) { throw 'Falha ao clonar SQLiteCpp' }
-}
+Sync-PinnedRepo $Pins.SQLiteCpp.Url $sqliteSrc $Pins.SQLiteCpp.Commit
 
 function Build-SQLite($platform) {
     $arch = if ($platform -eq 'x64') { 'x64' } else { 'x86' }
@@ -118,11 +129,7 @@ lib /nologo /OUT:"$out\SQLiteCpp.lib" Backup.obj Column.obj Database.obj Excepti
 }
 
 $bcgSrc = Join-Path $TpDir 'bcg729-src'
-if (-not (Test-Path $bcgSrc)) {
-    Step 'Baixando bcg729 (G.729)'
-    git clone --depth 1 https://github.com/BelledonneCommunications/bcg729.git $bcgSrc
-    if ($LASTEXITCODE -ne 0) { throw 'Falha ao clonar bcg729' }
-}
+Sync-PinnedRepo $Pins.bcg729.Url $bcgSrc $Pins.bcg729.Commit
 
 function Build-Bcg729($platform) {
     $arch = if ($platform -eq 'x64') { 'x64' } else { 'x86' }

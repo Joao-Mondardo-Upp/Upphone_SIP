@@ -22,7 +22,17 @@ pjproject\                  <- https://github.com/pjsip/pjproject
     build\pjproject\config_site.h
 ```
 
-Versão de pjproject usada no 1.0.0: `master` de 09/10/2026 (2.17-dev).
+### Versões fixadas
+
+As dependências externas ficam presas a commits exatos em [`build/pins.ps1`](build/pins.ps1). O `build.ps1` baixa e confere essas versões e se recusa a compilar com um pjproject diferente (a não ser com `-AllowOtherPjproject`).
+
+| Dependência | Commit | Observação |
+|---|---|---|
+| [pjproject](https://github.com/pjsip/pjproject/commit/bd69054a696054db8fb4e62b759a3ecaf26c0189) | `bd69054a69` | master de 09/10/2026 (2.17-dev) |
+| [bcg729](https://github.com/BelledonneCommunications/bcg729/commit/fb195811fe630415c9bf433c0c0bebde14314ff2) | `fb195811fe` | G.729, 14/07/2026 |
+| [SQLiteCpp](https://github.com/SRombauts/SQLiteCpp/commit/d07876c3090fa57f92af9e7fc92bb4b3f3c27390) | `d07876c309` | inclui o sqlite3, 02/10/2026 |
+
+Para atualizar uma dependência: troque o commit em `pins.ps1`, rode o build completo, teste chamadas e só então publique.
 
 ## Pré-requisitos
 
@@ -34,17 +44,19 @@ Versão de pjproject usada no 1.0.0: `master` de 09/10/2026 (2.17-dev).
 ## Como compilar
 
 ```powershell
-git clone https://github.com/pjsip/pjproject.git
-cd pjproject
-git clone https://github.com/Joao-Mondardo-Upp/Upphone_SIP.git microsip
-cd microsip\build
-.\build.ps1 -Installer
+git clone https://github.com/Joao-Mondardo-Upp/Upphone_SIP.git
+.\Upphone_SIP\build\setup.ps1 -Dir C:\src\upphone
+C:\src\upphone\microsip\build\build.ps1 -Installer
 ```
 
-O script:
+O `setup.ps1` cria `C:\src\upphone` com o pjproject no commit fixado e coloca este repositório em `C:\src\upphone\microsip`, no mesmo commit do script. Use um caminho curto: o build do pjproject passa do limite de 260 caracteres do Windows em pastas muito longas.
 
-1. aplica `build\pjproject\config_site.h` no pjproject;
-2. baixa e compila o **bcg729** (G.729) e o **SQLiteCpp**;
+Para compilar uma versão publicada, faça `git checkout v1.0.0` no clone antes de rodar o `setup.ps1`.
+
+O `build.ps1`:
+
+1. aplica `build\pjproject\config_site.h` no pjproject e confere o commit dele;
+2. baixa (nas versões fixadas) e compila o **bcg729** (G.729) e o **SQLiteCpp**;
 3. compila o pjproject (`Release-Static`) e o `Upphone.exe` para Win32 e x64;
 4. copia o resultado para `dist\<versão>\<plataforma>\` e gera os instaladores.
 
@@ -54,6 +66,7 @@ Opções úteis:
 |---|---|
 | `-Platforms x64` | compila só uma plataforma |
 | `-SkipPjproject` | não recompila o pjproject (mais rápido) |
+| `-AllowOtherPjproject` | aceita um pjproject fora do commit fixado (só para testes) |
 | `-PfxPath arquivo.pfx -PfxPassword (Read-Host -AsSecureString)` | assina com um certificado .pfx |
 | `-CertThumbprint <hash>` | assina com um certificado instalado ou em token |
 
