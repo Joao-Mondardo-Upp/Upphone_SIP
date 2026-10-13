@@ -82,6 +82,7 @@ enum EUserWndMessages
     IDT_TIMER_DTMF,
     IDT_TIMER_CUSTOM,
     IDT_TIMER_VERSION,
+    IDT_TIMER_UPDATES, // Upphone: checks for a new version while the app stays open
     UM_CLOSETAB,
     UM_DBLCLICKTAB,
     UM_QUERYTAB,
@@ -393,8 +394,9 @@ typedef struct {
     CString headers;
     CStringA body;
     void* userData;
+    bool strictTls; // Upphone: validate the HTTPS certificate (by default certificate errors are ignored)
 } URLGetAsyncData;
-void URLGetAsync(CString url, HWND hWnd = 0, UINT message = 0, int post = 0, CString postData = _T(""), CString headers = _T(""), CString username = _T(""), CString password = _T(""), void* userData = NULL);
+void URLGetAsync(CString url, HWND hWnd = 0, UINT message = 0, int post = 0, CString postData = _T(""), CString headers = _T(""), CString username = _T(""), CString password = _T(""), void* userData = NULL, bool strictTls = false);
 URLGetAsyncData URLGetSync(CString url, int post = 0, CString postData = _T(""), CString headers = _T(""), CString username = _T(""), CString password = _T(""), void* userData = NULL);
 
 CStringA urldecode(CStringA str);

@@ -70,7 +70,10 @@
 #define _GLOBAL_MENU_ISSUES "https://upphone.com.br/"
 #define _GLOBAL_MENU_HELP "https://upphone.com.br/"
 #define _GLOBAL_HELP_WEBSITE "https://upphone.com.br/"
-#define _GLOBAL_URL_CHECK_VERSION "https://upphone.com.br/?ver="
+// Upphone: new versions are the GitHub releases of this repository (build/release.ps1 publishes them).
+// The app reads the version from the API and always opens the fixed release page, never a link from the response.
+#define _GLOBAL_UPDATES_API "https://api.github.com/repos/Joao-Mondardo-Upp/Upphone_SIP/releases/latest"
+#define _GLOBAL_UPDATES_PAGE "https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/latest"
 #define _GLOBAL_TECH_DETAILS
 
 #define _GLOBAL_EC_DEFAULT "1"

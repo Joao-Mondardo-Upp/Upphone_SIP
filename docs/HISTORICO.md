@@ -1,16 +1,16 @@
 # Upphone SIP: histórico e passagem do projeto
 
-Documento para continuar o trabalho em outra máquina. Resume o que foi feito no desenvolvimento das versões 1.0.0 e 1.1.0 (outubro de 2026), por que cada decisão foi tomada e o que está pendente.
+Documento para continuar o trabalho em outra máquina. Resume o que foi feito no desenvolvimento das versões 1.0.0 a 1.2.0 (outubro de 2026), por que cada decisão foi tomada e o que está pendente.
 
 - Repositório: https://github.com/Joao-Mondardo-Upp/Upphone_SIP (público)
-- Releases publicadas: [v1.1.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.1.0) (atual) e [v1.0.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.0.0)
+- Releases publicadas: [v1.2.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.2.0) (atual), [v1.1.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.1.0) e [v1.0.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.0.0)
 - Como montar o ambiente e compilar: [README.md](../README.md)
 
 ---
 
 ## 1. Estado atual
 
-**Upphone SIP 1.1.0 está publicado**, com instaladores e versões portáteis de 32 e 64 bits, compilados a partir da tag `v1.1.0` numa pasta limpa, com `build/setup.ps1` e `build/build.ps1 -Installer`. O que mudou desde a 1.0.0 está nos itens 27 a 29 da seção 3 e em `build/notas/v1.1.0.md`.
+**Upphone SIP 1.2.0 está publicado**, com instaladores e versões portáteis de 32 e 64 bits, compilados a partir da tag `v1.2.0` numa pasta limpa, com `build/setup.ps1` e `build/build.ps1 -Installer`. O que mudou desde a 1.0.0 está nos itens 27 a 30 da seção 3 e em `build/notas/`. A partir da 1.2.0 o app avisa sozinho quando sai uma versão nova (item 30): nas próximas releases, a seção "## O que mudou" das notas é o texto que os clientes veem no aviso.
 
 | Item | Situação |
 |---|---|
@@ -64,7 +64,7 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
    - A faixa inferior das abas foi encolhida.
    - A altura da janela principal agora é sempre a padrão. A altura salva no `.ini` é ignorada (`mainDlg.cpp`, `int mH = rect.Height()`).
    - As páginas Registros e Contatos ocupam exatamente o espaço entre as abas e a barra de status.
-9. **Aviso de atualização do MicroSIP desativado** (`CheckUpdates` retorna direto), porque oferecia trocar o app pelo MicroSIP original.
+9. **Aviso de atualização do MicroSIP desativado** (`CheckUpdates` retorna direto), porque oferecia trocar o app pelo MicroSIP original. Substituído pelo aviso de versão nova do próprio Upphone (item 30).
 10. **Linha azul dos campos de texto** (foco do Windows 11) trocada por uma borda própria: cinza, e laranja quando o campo está em foco.
 11. **Ícones da bandeja** refeitos com a logo da Upphone e um ponto de status. Os originais do MicroSIP ficaram fora do repositório, em `microsip-icons-original\`, na máquina original.
 12. **Nome visível "Upphone SIP"** (`_GLOBAL_NAME_NICE`). O nome interno `_GLOBAL_NAME` continua "MicroSIP", porque é usado na classe da janela e para detectar a instância já aberta.
@@ -119,6 +119,14 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
     - **Registros e Contatos mais largos que a janela** quando o app abria com uma largura salva (`mainW`): as páginas eram registradas no `AutoMove` já com a largura salva e o acréscimo era somado de novo (`mainDlg.cpp`). As colunas da direita ficavam fora da janela.
     - **Instalador:** os atalhos do Menu Iniciar e da área de trabalho levam o `AppUserModelID` "Upphone SIP", o mesmo que o app usa, para a janela aberta ficar no botão do atalho e com o ícone certo.
     - Avisos de compilação: endereços do `crash-dump` como texto (truncavam no x64, C4311) e `#undef`/`#ifndef` nas macros redefinidas (C4005) em `config_site.h`, `lib/MessageBoxX.h` e `lib/Hid.cpp`. Os valores não mudaram.
+30. **Aviso de versão nova** (versão 1.2.0), no lugar do canal de atualização do MicroSIP (`mainDlg.cpp`, `CheckUpdates`).
+    - O app consulta a última release deste repositório na API do GitHub (`_GLOBAL_UPDATES_API` em `define.h`): ao abrir e depois de hora em hora (`IDT_TIMER_UPDATES`), no máximo uma vez por dia (`updatesInterval = "daily"`). Não consulta durante uma chamada.
+    - Se a versão da release (`tag_name`) for maior que `_GLOBAL_VERSION`, mostra "Atualização disponível" com os itens da seção "## O que mudou" das notas. "Sim" abre a página fixa da última release (`_GLOBAL_UPDATES_PAGE`), nunca um link vindo da resposta; "Não" guarda a versão em `updatesDeclined` (`[Global]` do `.ini`) e ela não é oferecida de novo sozinha.
+    - Menu "Verificar por atualizações": consulta na hora, oferece até a versão recusada e avisa quando já está na mais recente ou quando não conseguiu consultar.
+    - A consulta valida o certificado HTTPS (`URLGetAsync` com `strictTls`; as outras requisições do app continuam como no MicroSIP).
+    - A data da última consulta (`checkUpdatesTime`) passou a ser gravada: o `GlobalSave` nunca era chamado.
+    - Para o aviso funcionar, a seção "## O que mudou" das notas (`build/notas/`) deve ter os itens em linhas começando com "- ".
+    - **Corrigido junto (defeito herdado do MicroSIP):** toda execução do `Upphone.exe` abre o `.ini` com acesso exclusivo. Se o Upphone já aberto estivesse gravando o `.ini` naquele instante, uma segunda execução (`/exit`, link `tel:`, clique no atalho) mostrava "Failed to open file for writing" e ficava parada nessa mensagem. Agora ela tenta de novo por até 2 segundos, e um `.ini` existente ocupado não é mais erro (`AccountSettings::Init`). Achado nos testes: a gravação da data da consulta por volta de 5 s após abrir deixava essa janela de risco maior.
 
 ---
 
@@ -131,6 +139,7 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
 | Sem vídeo, Opus e TLS/SRTP | Não eram necessários na 1.0.0 e reduzem dependências (OpenSSL, ffmpeg etc.) |
 | SRTP compilado, mas sempre desligado | O `config_site.h` mantém `PJMEDIA_HAS_SRTP 1` (sem TLS nem DTLS), mas o diálogo de conta grava o SRTP vazio (`AccountDlg.cpp`), ou seja, desligado. Tirar do `config_site.h` exigiria recompilar e testar o pjproject de novo |
 | Sem atualização do MicroSIP | Ela substituiria o Upphone pelo MicroSIP original |
+| Aviso de versão nova pelo GitHub Releases | Não precisa de servidor: cada `release.ps1` já avisa os clientes. Só avisa e abre a página da release; instalar sozinho fica para depois da assinatura digital (UAC e SmartScreen) |
 | Sem prazo de validade | Pedido da Upp ("prazo infinito"); o app não se atualiza sozinho |
 | Sem relatório de travamento | Os dados iriam para os desenvolvedores do MicroSIP |
 | Sem CONF e REC | Pedido da Upp |
@@ -148,7 +157,7 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
 |---|---|
 | `Theme.h/.cpp` | Paleta claro/escuro, leitura do modo do Windows, `UPPHONE_THEME`, coluna ordenada das listas |
 | `define.h` | `_GLOBAL_BRAND_ACCENT`, macros `_GLOBAL_THEME_*`, links upphone.com.br, nome "Upphone SIP" |
-| `const.h` | Versão (1.1.0), timestamp, empresa, vídeo desligado |
+| `const.h` | Versão, timestamp, empresa, vídeo desligado |
 | `ThemeDialog.h/.cpp` | Cores dos controles (`OnCtlColor`), borda dos campos e do chat, cabeçalho e seta de ordenação das listas, troca de tema ao vivo |
 | `ClosableTabCtrl.h/.cpp` | Abas da janela de mensagens desenhadas no tema, botão de fechar e setas de rolagem |
 | `CListCtrl_Sortable.h/.cpp` | Colunas ajustadas à largura da lista, seta de ordenação via `ThemeSetListSort` |
@@ -212,7 +221,7 @@ Em ordem de prioridade:
    - abrir a ficha do cliente quando o telefone toca: o app já tem os ganchos `cmdIncomingCall`, `cmdCallAnswer` etc., que podem chamar um webhook do n8n e, a partir dele, um CRM ou helpdesk;
    - click-to-call (`tel:`/`sip:`);
    - provisionamento automático da conta;
-   - atualização automática própria, apontando para upphone.com.br.
+   - instalação automática das versões novas (o aviso já existe, item 30 da seção 3), depois da assinatura digital.
 6. **Opcionais:** TLS/SRTP (exige OpenSSL) e Opus.
 
 ---

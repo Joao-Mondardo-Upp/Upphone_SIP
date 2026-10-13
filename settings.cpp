@@ -234,55 +234,70 @@ void AccountSettings::Init()
         if (lstrcmp(AfxGetApp()->m_lpCmdLine, _T("/reset")) == 0) {
             return;
         }
+        // Upphone: the Upphone already open may be writing the ini right now (WritePrivateProfileString keeps it
+        // open for a moment). A second start, /exit or a tel: link then failed with "Failed to open file for writing"
+        // and stayed on that message: wait and try again, and only the creation of a new ini is a real failure.
         bool iniFailed = false;
-        if (!::PathFileExists(iniFile) || FileSize(iniFile) == 0) {
-            firstRun = true;
-            // create UTF16-LE BOM(FFFE)
-            WORD wBOM = 0xFEFF;
-            CString pszSectionB = _T("[Global]");
-            CFile file;
-            CFileException fileException;
-            if (file.Open(iniFile, CFile::modeCreate | CFile::modeReadWrite | CFile::typeBinary | CFile::shareExclusive, &fileException)) {
-                file.Write(&wBOM, sizeof(wBOM));
-                file.Write(pszSectionB.GetString(), pszSectionB.GetLength() * sizeof(wchar_t));
-                file.Close();
-            }
-            else {
-                iniFailed = true;
-            }
-        }
-        else if (!firstRun) {
-            CFile file;
-            CFileException fileException;
-            if (file.Open(iniFile, CFile::modeReadWrite | CFile::typeBinary | CFile::shareExclusive, &fileException)) {
-                WORD wBOM;
-                if (sizeof(WORD) == file.Read(&wBOM, sizeof(WORD))) {
-                    if (wBOM != 0xFEFF) {
-                        // convert to UTF16-LE BOM
-                        file.SeekToBegin();
-                        CStringA data;
-                        int i;
-                        UINT len = 0;
-                        do {
-                            LPSTR p = data.GetBuffer(len + 1024);
-                            i = file.Read(p + len, 1024);
-                            len += i;
-                            data.ReleaseBuffer(len);
-                        } while (i > 0);
-                        file.SetLength(0);
-                        wBOM = 0xFEFF;
-                        file.Write(&wBOM, sizeof(wBOM));
-                        CString res = MSIP::AnsiToWideChar(data.GetString());
-                        file.Write(res.GetString(), data.GetLength() * sizeof(wchar_t));
-                    }
+        bool iniCreateFailed = false;
+        for (int attempt = 0; ; attempt++) {
+            iniFailed = false;
+            iniCreateFailed = false;
+            firstRun = false;
+            if (!::PathFileExists(iniFile) || FileSize(iniFile) == 0) {
+                firstRun = true;
+                // create UTF16-LE BOM(FFFE)
+                WORD wBOM = 0xFEFF;
+                CString pszSectionB = _T("[Global]");
+                CFile file;
+                CFileException fileException;
+                if (file.Open(iniFile, CFile::modeCreate | CFile::modeReadWrite | CFile::typeBinary | CFile::shareExclusive, &fileException)) {
+                    file.Write(&wBOM, sizeof(wBOM));
+                    file.Write(pszSectionB.GetString(), pszSectionB.GetLength() * sizeof(wchar_t));
+                    file.Close();
                 }
-                file.Close();
+                else {
+                    iniFailed = true;
+                    iniCreateFailed = true;
+                }
             }
-            else {
-                iniFailed = true;
+            else if (!firstRun) {
+                CFile file;
+                CFileException fileException;
+                if (file.Open(iniFile, CFile::modeReadWrite | CFile::typeBinary | CFile::shareExclusive, &fileException)) {
+                    WORD wBOM;
+                    if (sizeof(WORD) == file.Read(&wBOM, sizeof(WORD))) {
+                        if (wBOM != 0xFEFF) {
+                            // convert to UTF16-LE BOM
+                            file.SeekToBegin();
+                            CStringA data;
+                            int i;
+                            UINT len = 0;
+                            do {
+                                LPSTR p = data.GetBuffer(len + 1024);
+                                i = file.Read(p + len, 1024);
+                                len += i;
+                                data.ReleaseBuffer(len);
+                            } while (i > 0);
+                            file.SetLength(0);
+                            wBOM = 0xFEFF;
+                            file.Write(&wBOM, sizeof(wBOM));
+                            CString res = MSIP::AnsiToWideChar(data.GetString());
+                            file.Write(res.GetString(), data.GetLength() * sizeof(wchar_t));
+                        }
+                    }
+                    file.Close();
+                }
+                else {
+                    iniFailed = true;
+                }
             }
+            if (!iniFailed || attempt == 20) {
+                break;
+            }
+            Sleep(100);
         }
-        if (iniFailed) {
+        // an existing ini that stays busy is not an error: the check above only converts very old ANSI files
+        if (iniCreateFailed) {
             CString str;
             str.Format(_T("Failed to open file for writing %s"), iniFile);
             throw std::runtime_error(CW2A(str, CP_UTF8));
@@ -313,6 +328,10 @@ void AccountSettings::Init()
         WritePrivateProfileString(sectionSettings, _T("checkUpdatesTime"), NULL, iniFile);
     }
     checkUpdatesTime = _wtoi(str);
+
+    ptr = updatesDeclined.GetBuffer(64);
+    GetPrivateProfileString(section, _T("updatesDeclined"), NULL, ptr, 64, iniFile);
+    updatesDeclined.ReleaseBuffer();
 
     //--
     SettingsLoad();
@@ -677,7 +696,7 @@ void AccountSettings::SettingsLoad(CString filename)
     callWaiting = true;
     multiMonitor = false;
     networkChanges = true;
-    updatesInterval.Empty(); // semanalmente
+    updatesInterval = _T("daily"); // Upphone: new versions are looked up once a day (GitHub releases)
 
     // load ini settings
 
@@ -1113,6 +1132,7 @@ void AccountSettings::GlobalSave(CString filename)
 
     str.Format(_T("%d"), checkUpdatesTime);
     WritePrivateProfileString(section, _T("checkUpdatesTime"), str, filename);
+    WritePrivateProfileString(section, _T("updatesDeclined"), updatesDeclined.IsEmpty() ? NULL : updatesDeclined.GetString(), filename);
 }
 
 CString ShortcutEncode(Shortcut* pShortcut)

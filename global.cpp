@@ -991,7 +991,7 @@ static DWORD WINAPI URLGetAsyncThread(LPVOID lpParam)
                     (dwServiceType == AFX_INET_SERVICE_HTTPS ? INTERNET_FLAG_SECURE : 0) |
                     (!strUsername.IsEmpty() && !strPassword.IsEmpty() ? INTERNET_FLAG_KEEP_CONNECTION : 0)
                 );
-                if (dwServiceType == AFX_INET_SERVICE_HTTPS) {
+                if (dwServiceType == AFX_INET_SERVICE_HTTPS && !data->strictTls) {
                     pFile->SetOption(INTERNET_OPTION_SECURITY_FLAGS,
                         SECURITY_FLAG_IGNORE_CERT_CN_INVALID |
                         SECURITY_FLAG_IGNORE_CERT_DATE_INVALID |
@@ -1046,10 +1046,11 @@ static DWORD WINAPI URLGetAsyncThread(LPVOID lpParam)
     return 0;
 }
 
-void URLGetAsync(CString url, HWND hWnd, UINT message, int post, CString postData, CString headers, CString username, CString password, void* userData)
+void URLGetAsync(CString url, HWND hWnd, UINT message, int post, CString postData, CString headers, CString username, CString password, void* userData, bool strictTls)
 {
     HANDLE hThread;
     URLGetAsyncData* data = new URLGetAsyncData();
+    data->strictTls = strictTls;
     data->hWnd = hWnd;
     data->message = message;
     data->statusCode = 0;
@@ -1069,6 +1070,7 @@ void URLGetAsync(CString url, HWND hWnd, UINT message, int post, CString postDat
 URLGetAsyncData URLGetSync(CString url, int post, CString postData, CString headers, CString username, CString password, void* userData)
 {
     URLGetAsyncData data;
+    data.strictTls = false;
     data.hWnd = 0;
     data.message = 1;
     data.statusCode = 0;

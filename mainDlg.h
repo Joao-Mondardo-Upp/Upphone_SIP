@@ -284,7 +284,7 @@ public:
     afx_msg void OnMuteOutput();
     afx_msg void OnCheckUpdates();
     afx_msg void CheckUpdates();
-    void CheckUpdatesMicroSIP();
+    void CheckUpdatesIfDue(); // Upphone
     afx_msg LRESULT OnUpdateCheckerLoaded(WPARAM wParam, LPARAM lParam);
 #ifdef _GLOBAL_VIDEO
     afx_msg void createPreviewWin();
