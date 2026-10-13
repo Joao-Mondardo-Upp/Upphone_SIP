@@ -10,6 +10,9 @@
 #define PJ_HAS_SSL_SOCK                 0
 #define PJMEDIA_SRTP_HAS_DTLS           0
 
+/* config_site_sample.h (PJ_CONFIG_MAXIMUM_SPEED) already sets these two: undef avoids warning C4005 */
 #define PJSUA_MAX_ACC                   32
+#undef  PJSUA_MAX_CALLS
 #define PJSUA_MAX_CALLS                 32
+#undef  PJ_IOQUEUE_MAX_HANDLES
 #define PJ_IOQUEUE_MAX_HANDLES          1024

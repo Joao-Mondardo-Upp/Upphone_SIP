@@ -31,7 +31,7 @@ static CString defaultActionItems[] = {
 #ifdef _GLOBAL_VIDEO
     MSIP_SHORTCUT_VIDEOCALL,
 #endif
-    MSIP_SHORTCUT_MESSAGE,
+    // Upphone: no "Message" action, chat is disabled
     MSIP_SHORTCUT_DTMF,
     MSIP_SHORTCUT_BT,
     MSIP_SHORTCUT_AT,
@@ -45,7 +45,6 @@ static CString defaultActionValues[] = {
 #ifdef _GLOBAL_VIDEO
     _T("Video Call"),
 #endif
-    _T("Message"),
     _T("DTMF"),
     _T("Blind Transfer"),
     _T("Attended Transfer"),

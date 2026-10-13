@@ -1,9 +1,9 @@
 ; Instalador do Upphone SIP (Inno Setup 6)
 ; Normalmente chamado pelo build.ps1:
-;   ISCC.exe /DAppVersion=1.0.0 /DPlatform=x64 /DSourceDir=..\dist\1.0.0\x64 Upphone.iss
+;   ISCC.exe /DAppVersion=1.1.0 /DPlatform=x64 /DSourceDir=..\dist\1.1.0\x64 Upphone.iss
 
 #ifndef AppVersion
-  #define AppVersion "1.0.0"
+  #define AppVersion "1.1.0"
 #endif
 #ifndef Platform
   #define Platform "x64"
@@ -57,8 +57,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "{#SourceDir}\{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon
+; AppUserModelID igual ao do app (jumplist.cpp, _GLOBAL_NAME_VISIBLE): a janela aberta fica no mesmo botao da barra de tarefas que o atalho, com o icone dele
+Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExe}"; AppUserModelID: "{#AppName}"
+Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopicon; AppUserModelID: "{#AppName}"
 
 [Registry]
 ; O app procura esta chave: se apontar para a pasta do .exe, ele roda em modo "instalado"

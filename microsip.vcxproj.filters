@@ -177,6 +177,12 @@
     <ClCompile Include="ButtonSafe.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="DarkTabCtrl.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Theme.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="ThemeDialog.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -186,13 +192,13 @@
     <ClCompile Include="ImportDlg.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="data\CallsRepository.cpp">
+    <ClCompile Include="Data\CallsRepository.cpp">
       <Filter>Source Files\Data</Filter>
     </ClCompile>
-    <ClCompile Include="service\CallsService.cpp">
+    <ClCompile Include="Service\CallsService.cpp">
       <Filter>Source Files\Service</Filter>
     </ClCompile>
-    <ClCompile Include="data\Database.cpp">
+    <ClCompile Include="Data\Database.cpp">
       <Filter>Source Files\Data</Filter>
     </ClCompile>
     <ClCompile Include="Service\ContactsService.cpp">
@@ -359,6 +365,12 @@
     <ClInclude Include="ButtonSafe.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="DarkTabCtrl.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Theme.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="ThemeDialog.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -368,22 +380,22 @@
     <ClInclude Include="ImportDlg.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="domain\Call.h">
+    <ClInclude Include="Domain\Call.h">
       <Filter>Header Files\Domain</Filter>
     </ClInclude>
-    <ClInclude Include="data\CallsRepository.h">
+    <ClInclude Include="Data\CallsRepository.h">
       <Filter>Header Files\Data</Filter>
     </ClInclude>
-    <ClInclude Include="data\ICallsRepository.h">
+    <ClInclude Include="Data\ICallsRepository.h">
       <Filter>Header Files\Data</Filter>
     </ClInclude>
-    <ClInclude Include="service\CallsService.h">
+    <ClInclude Include="Service\CallsService.h">
       <Filter>Header Files\Service</Filter>
     </ClInclude>
-    <ClInclude Include="data\Database.h">
+    <ClInclude Include="Data\Database.h">
       <Filter>Header Files\Data</Filter>
     </ClInclude>
-    <ClInclude Include="utils\StringConverter.h">
+    <ClInclude Include="Utils\StringConverter.h">
       <Filter>Header Files\Utils</Filter>
     </ClInclude>
     <ClInclude Include="Domain\Contact.h">
@@ -406,64 +418,16 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="res\active.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\away.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\blank.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\busy.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\callin.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\callmiss.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\callout.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="res\close.ico">
       <Filter>Resource Files</Filter>
     </Image>
     <Image Include="res\close2.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="res\error.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="res\exit.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="res\icon1.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\icon2.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\inactive.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
     <Image Include="res\microsip.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\offline.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\online.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\ringing.ico">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\toolbar1.bmp">
-      <Filter>Resource Files</Filter>
-    </Image>
-    <Image Include="res\unknown.ico">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

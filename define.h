@@ -59,7 +59,8 @@
 #define IDD_CALLS_OFFSET_LISTVIEW IDD_CALLS_OFFSET_LISTVIEW2+2
 
 
-#define _GLOBAL_CODECS_ENABLED "PCMA/8000/1 PCMU/8000/1"
+// Upphone: mesma lista fixa de AccountSettings::SettingsLoad (settings.cpp), com G.729
+#define _GLOBAL_CODECS_ENABLED "PCMA/8000/1 PCMU/8000/1 G729/8000/1"
 
 #define _GLOBAL_SETT_DENYINC_DEFAULT "button"
 #define _GLOBAL_SETT_AA_DEFAULT "button"

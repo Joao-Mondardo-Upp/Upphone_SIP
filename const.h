@@ -1,9 +1,8 @@
 /*
-/*
  * Copyright (C) 2011-2026 MicroSIP (http://www.microsip.org)
  *
  * This program is free software; you can redistribute it and/or modify
- * it unbodr the terms of the GNU General Public License as published by
+ * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
@@ -18,9 +17,9 @@
  */
 
 #pragma once
-#define _GLOBAL_VERSION "1.0.0"
-#define _GLOBAL_VERSION_COMMA 1,0,0,0
-#define _GLOBAL_TIMESTAMP 1791547200
+#define _GLOBAL_VERSION "1.1.0"
+#define _GLOBAL_VERSION_COMMA 1,1,0,0
+#define _GLOBAL_TIMESTAMP 1791892800
 #define _GLOBAL_KEY "*********"
 // #define _GLOBAL_VIDEO // desativado: pjproject compilado sem video
 #define _GLOBAL_NAME "MicroSIP"

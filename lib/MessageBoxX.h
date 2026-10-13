@@ -35,7 +35,9 @@ to maintain a single distribution point for the source code.
 #include <afxlinkctrl.h>
 #endif //#ifndef NO_CMESSAGEBOXX_HYPERLINK
 
+#ifndef _NODISCARD // Upphone: current MSVC already defines it (vcruntime.h), avoid warning C4005
 #define _NODISCARD
+#endif
 
 #include <array>
 

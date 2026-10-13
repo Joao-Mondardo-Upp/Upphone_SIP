@@ -41,30 +41,33 @@ static LONGLONG FileSize(const wchar_t* name)
     return size.QuadPart;
 }
 
-bool IniDecrypt(CString& str)
+// Upphone: the account password is protected with DPAPI, so only the same Windows user on the
+// same computer can read it. The MicroSIP format used _GLOBAL_KEY, which is public in this
+// repository; it is still read so existing Upphone.ini files are converted on the next start.
+#pragma comment(lib, "crypt32.lib")
+static const TCHAR kIniDpapiPrefix[] = _T("dpapi:");
+
+static bool IniDecryptLegacy(CString& str)
 {
-    if (!str.IsEmpty()) {
-        bool res = false;
-        CByteArray arPassword;
-        MSIP::String2Bin(str, &arPassword);
-        MFC::CCrypto crypto;
-        CString key = (LPCTSTR)_GLOBAL_KEY;
-        if (crypto.DeriveKey(key)) {
-            try {
-                if (crypto.Decrypt(arPassword, str)) {
-                    res = true;
-                }
-            }
-            catch (CArchiveException* e) {
+    bool res = false;
+    CByteArray arPassword;
+    MSIP::String2Bin(str, &arPassword);
+    MFC::CCrypto crypto;
+    CString key = (LPCTSTR)_GLOBAL_KEY;
+    if (crypto.DeriveKey(key)) {
+        try {
+            if (crypto.Decrypt(arPassword, str)) {
+                res = true;
             }
         }
-        return res;
+        catch (CArchiveException* e) {
+            e->Delete();
+        }
     }
-    else {
-        return true;
-    }
+    return res;
 }
-CString IniEncrypt(CString str)
+
+static CString IniEncryptLegacy(CString str)
 {
     CString res;
     MFC::CCrypto crypto;
@@ -79,6 +82,51 @@ CString IniEncrypt(CString str)
         res = str;
     }
     return res;
+}
+
+// Decrypts str in place. Returns false when str must be written back with IniEncrypt:
+// it was plain text or in the old MicroSIP format.
+bool IniDecrypt(CString& str)
+{
+    if (str.IsEmpty()) {
+        return true;
+    }
+    int prefixLength = _countof(kIniDpapiPrefix) - 1;
+    if (str.Left(prefixLength) == kIniDpapiPrefix) {
+        CByteArray blob;
+        MSIP::String2Bin(str.Mid(prefixLength), &blob);
+        DATA_BLOB in = { (DWORD)blob.GetSize(), blob.GetData() };
+        DATA_BLOB out = {};
+        str.Empty();
+        if (in.cbData && CryptUnprotectData(&in, NULL, NULL, NULL, NULL, CRYPTPROTECT_UI_FORBIDDEN, &out)) {
+            str.SetString((LPCWSTR)out.pbData, out.cbData / sizeof(wchar_t));
+            SecureZeroMemory(out.pbData, out.cbData);
+            LocalFree(out.pbData);
+        }
+        // otherwise the file came from another user or computer: no password, it has to be typed again
+        return true;
+    }
+    IniDecryptLegacy(str);
+    return false;
+}
+
+CString IniEncrypt(CString str)
+{
+    if (str.IsEmpty()) {
+        return str;
+    }
+    DATA_BLOB in = { (DWORD)(str.GetLength() * sizeof(wchar_t)), (BYTE*)str.GetBuffer() };
+    DATA_BLOB out = {};
+    BOOL ok = CryptProtectData(&in, _T(_GLOBAL_NAME_NICE), NULL, NULL, NULL, CRYPTPROTECT_UI_FORBIDDEN, &out);
+    str.ReleaseBuffer();
+    if (!ok) {
+        return IniEncryptLegacy(str);
+    }
+    CByteArray blob;
+    blob.SetSize(out.cbData);
+    memcpy(blob.GetData(), out.pbData, out.cbData);
+    LocalFree(out.pbData);
+    return kIniDpapiPrefix + MSIP::Bin2String(&blob);
 }
 
 void AccountSettings::Init()
@@ -550,7 +598,7 @@ void AccountSettings::SettingsLoad(CString filename)
     ec = false;
     forceCodec = false;
     opusStereo = false;
-    disableMessaging = false;
+    disableMessaging = true; // Upphone: chat (SIP MESSAGE) not used
 
 #ifdef _GLOBAL_VIDEO
     // Video

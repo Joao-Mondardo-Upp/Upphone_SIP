@@ -38,7 +38,7 @@ protected:
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
     afx_msg void OnSettingChange(UINT uFlags, LPCTSTR lpszSection);
     //}}AFX_MSG
-    BYTE lastDark;
+    int lastDark = -1; // Upphone: int, so the "not applied yet" value -1 can be compared
     DECLARE_MESSAGE_MAP()
 
 private:
