@@ -77,3 +77,31 @@ HBRUSH ThemeBrush(ThemeColorId id)
 	}
 	return g_brushes[mode][id];
 }
+
+static const wchar_t* kListSortProp = L"Upphone.ListSort";
+
+void ThemeSetListSort(HWND hList, int column, bool ascending)
+{
+	if (column < 0) {
+		ThemeClearListSort(hList);
+		return;
+	}
+	// column + 1 in the low word (0 = no sort), direction in the high word
+	SetPropW(hList, kListSortProp, (HANDLE)(INT_PTR)MAKELONG(column + 1, ascending ? 1 : 0));
+}
+
+bool ThemeGetListSort(HWND hList, int* column, bool* ascending)
+{
+	DWORD value = (DWORD)(INT_PTR)GetPropW(hList, kListSortProp);
+	if (!LOWORD(value)) {
+		return false;
+	}
+	*column = LOWORD(value) - 1;
+	*ascending = HIWORD(value) != 0;
+	return true;
+}
+
+void ThemeClearListSort(HWND hList)
+{
+	RemovePropW(hList, kListSortProp);
+}

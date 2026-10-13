@@ -55,11 +55,21 @@ BOOL CALLBACK EnumMonitorsProc(HMONITOR hMonitor, HDC hdcMonitor, LPRECT lprcMon
 void RinginDlg::DoDataExchange(CDataExchange* pDX)
 {
     CBaseDialog::DoDataExchange(pDX);
+    DDX_Control(pDX, IDC_ANSWER, m_ButtonAnswer);
+    DDX_Control(pDX, IDC_DECLINE, m_ButtonDecline);
 }
 
 BOOL RinginDlg::OnInitDialog() {
     m_bAllowDark = true;
     CBaseDialog::OnInitDialog();
+
+    // Upphone: Answer and Decline with the same colors as the Call and End buttons
+    m_ButtonAnswer.m_FaceColor = _GLOBAL_DIALER_CALL_COLOR;
+    m_ButtonAnswer.m_TextColor = RGB(255, 255, 255);
+    m_ButtonAnswer.EnableWindow(m_ButtonAnswer.IsWindowEnabled());
+    m_ButtonDecline.m_FaceColor = _GLOBAL_DIALER_END_COLOR;
+    m_ButtonDecline.m_TextColor = RGB(255, 255, 255);
+    m_ButtonDecline.EnableWindow(m_ButtonDecline.IsWindowEnabled());
 
     AutoMove(IDC_ANSWER, 0, 100, 0, 0);
     AutoMove(IDC_DECLINE, 0, 100, 0, 0);

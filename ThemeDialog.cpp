@@ -32,7 +32,8 @@ CThemeDialog::CThemeDialog(UINT nIDTemplate, CWnd* pParent /*=NULL*/)
 {
 }
 
-// Upphone: flat themed border for edit boxes (no Windows accent underline)
+// Upphone: flat themed border for edit boxes (no Windows accent underline).
+// dwRefData is the ThemeColorId of the control background, used for the inner line.
 static LRESULT CALLBACK DarkEditSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
     switch (uMsg) {
@@ -45,10 +46,14 @@ static LRESULT CALLBACK DarkEditSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam
             OffsetRect(&rc, -rc.left, -rc.top);
             bool focused = GetFocus() == hWnd;
             HBRUSH border = CreateSolidBrush(focused ? _GLOBAL_BRAND_ACCENT : _GLOBAL_THEME_BORDER);
-            HBRUSH inner = CreateSolidBrush(_GLOBAL_THEME_SURFACE);
+            HBRUSH inner = CreateSolidBrush(ThemeColor((ThemeColorId)dwRefData));
             FrameRect(hdc, &rc, border);
-            InflateRect(&rc, -1, -1);
-            FrameRect(hdc, &rc, inner);
+            // a static edge is only 1px wide: the inner line would cover the text area
+            LONG_PTR exStyle = GetWindowLongPtr(hWnd, GWL_EXSTYLE);
+            if ((exStyle & WS_EX_CLIENTEDGE) || !(exStyle & WS_EX_STATICEDGE)) {
+                InflateRect(&rc, -1, -1);
+                FrameRect(hdc, &rc, inner);
+            }
             DeleteObject(border);
             DeleteObject(inner);
             ReleaseDC(hWnd, hdc);
@@ -68,6 +73,42 @@ static LRESULT CALLBACK DarkEditSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
+// Upphone: small chevron at the right of the sorted column label (see ThemeSetListSort)
+static void DrawSortArrow(HWND hList, LPNMCUSTOMDRAW cd)
+{
+    int column;
+    bool ascending;
+    if (!ThemeGetListSort(hList, &column, &ascending) || (int)cd->dwItemSpec != column) {
+        return;
+    }
+    int dpi = GetDeviceCaps(cd->hdc, LOGPIXELSY);
+    int w = MulDiv(8, dpi, 96);
+    int h = w / 2;
+    int pad = MulDiv(6, dpi, 96);
+    RECT rc = cd->rc;
+    if (rc.right - rc.left < w + 2 * pad) {
+        return;
+    }
+    int x = rc.right - pad - w;
+    int y = rc.top + (rc.bottom - rc.top - h) / 2;
+    POINT pts[3];
+    if (ascending) {
+        pts[0] = { x, y + h };
+        pts[1] = { x + w / 2, y };
+        pts[2] = { x + w, y + h };
+    }
+    else {
+        pts[0] = { x, y };
+        pts[1] = { x + w / 2, y + h };
+        pts[2] = { x + w, y };
+    }
+    HPEN pen = CreatePen(PS_SOLID, MulDiv(1, dpi, 96), _GLOBAL_THEME_TEXT2);
+    HGDIOBJ oldPen = SelectObject(cd->hdc, pen);
+    Polyline(cd->hdc, pts, 3);
+    SelectObject(cd->hdc, oldPen);
+    DeleteObject(pen);
+}
+
 // Upphone: readable column headers on dark list views
 static LRESULT CALLBACK DarkListSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
 {
@@ -80,11 +121,15 @@ static LRESULT CALLBACK DarkListSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam
                 return CDRF_NOTIFYITEMDRAW;
             case CDDS_ITEMPREPAINT:
                 SetTextColor(cd->hdc, _GLOBAL_THEME_TEXT);
+                return CDRF_NOTIFYPOSTPAINT;
+            case CDDS_ITEMPOSTPAINT:
+                DrawSortArrow(hWnd, cd);
                 return CDRF_DODEFAULT;
             }
         }
     }
     else if (uMsg == WM_NCDESTROY) {
+        ThemeClearListSort(hWnd);
         RemoveWindowSubclass(hWnd, DarkListSubclassProc, uIdSubclass);
     }
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
@@ -97,17 +142,25 @@ static bool IsComboEdit(HWND hWnd)
     return wcscmp(parentCls, L"ComboBox") == 0;
 }
 
+static bool HasBorder(HWND hWnd)
+{
+    return (GetWindowLongPtr(hWnd, GWL_STYLE) & WS_BORDER) || (GetWindowLongPtr(hWnd, GWL_EXSTYLE) & (WS_EX_CLIENTEDGE | WS_EX_STATICEDGE));
+}
+
+static void ApplyDarkFrame(HWND hWnd, ThemeColorId background)
+{
+    SetWindowSubclass(hWnd, DarkEditSubclassProc, 1, background);
+    SetWindowPos(hWnd, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+}
+
 static void ApplyDarkEdit(HWND hWnd)
 {
     if (IsComboEdit(hWnd)) {
         return;
     }
-    LONG_PTR style = GetWindowLongPtr(hWnd, GWL_STYLE);
-    LONG_PTR exStyle = GetWindowLongPtr(hWnd, GWL_EXSTYLE);
-    if ((style & WS_BORDER) || (exStyle & WS_EX_CLIENTEDGE)) {
+    if (HasBorder(hWnd)) {
         SetWindowTheme(hWnd, L"", L"");
-        SetWindowSubclass(hWnd, DarkEditSubclassProc, 1, 0);
-        SetWindowPos(hWnd, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        ApplyDarkFrame(hWnd, THEME_SURFACE);
     }
 }
 
@@ -251,6 +304,11 @@ void CThemeDialog::ApplyTheme()
                     cf.dwMask = CFM_COLOR;
                     cf.crTextColor = _GLOBAL_THEME_TEXT;
                     ::SendMessage(hWnd, EM_SETCHARFORMAT, SCF_DEFAULT, (LPARAM)&cf);
+                    // Upphone: themed scrollbars and the same flat border as the edit boxes (chat window)
+                    SetWindowTheme(hWnd, dark ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+                    if (HasBorder(hWnd)) {
+                        ApplyDarkFrame(hWnd, readOnly ? THEME_BG : THEME_SURFACE);
+                    }
                 }
                 else if (wcscmp(cls, L"Edit") == 0 || wcscmp(cls, L"Static") == 0 || wcscmp(cls, L"ListBox") == 0) {
                     SetWindowTheme(hWnd, dark ? L"DarkMode_Explorer" : L"Explorer", nullptr);

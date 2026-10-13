@@ -25,6 +25,15 @@ protected:
 	bool SetDefaultContextMenuPos();
 	bool IsVistaThemeActive() const;
 
+	// Upphone: the whole control is painted with the app theme (OnPaint), DrawItem is no longer used
+	int m_hotItem = -1;
+	bool m_hotClose = false;
+	HWND m_hSpin = NULL;
+	CRect GetThemedCloseRect(int iItem);
+	afx_msg void OnPaint();
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg LRESULT OnMouseLeave(WPARAM wParam, LPARAM lParam);
+
 	virtual void PreSubclassWindow();
 	virtual void DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct);
 	virtual BOOL OnCommand(WPARAM wParam, LPARAM lParam);

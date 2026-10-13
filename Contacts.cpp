@@ -78,6 +78,8 @@ BOOL Contacts::OnInitDialog()
 	list->InsertColumn(0, Translate(_T("Name")), LVCFMT_LEFT, accountSettings.contactsWidth0 > 0 ? accountSettings.contactsWidth0 : 160);
 	list->InsertColumn(1, Translate(_T("Number")), LVCFMT_LEFT, accountSettings.contactsWidth1 > 0 ? accountSettings.contactsWidth1 : 100);
 	list->InsertColumn(2, Translate(_T("Information")), LVCFMT_LEFT, accountSettings.contactsWidth2 > 0 ? accountSettings.contactsWidth2 : 120);
+	// Upphone: columns fitted to the window width
+	m_list.FitColumnsEnable({ 80, 70, 80 });
 
     CString filename = accountSettings.pathRoaming + _T("contacts.db");
     static Database db(CStringToUtf8(filename));
@@ -184,6 +186,7 @@ void Contacts::OnEndtrack(NMHDR* pNMHDR, LRESULT* pResult)
 		accountSettings.contactsWidth2 = width;
 		break;
 	}
+	m_list.FitColumnsTrack(phdn->iItem, width); // Upphone
 	mainDlg->AccountSettingsPendingSave();
 	*pResult = 0;
 }

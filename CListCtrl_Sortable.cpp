@@ -5,9 +5,15 @@
 #include "mainDlg.h"
 
 #include <uxtheme.h>
+#include "Theme.h"
+
+// Upphone: posted after the user resizes a column, once the header has applied the new width
+static const UINT UM_FIT_COLUMNS = WM_APP + 1;
 
 BEGIN_MESSAGE_MAP(CListCtrl_Sortable, CListCtrl_LabelTip)
     ON_NOTIFY_REFLECT_EX(LVN_COLUMNCLICK, OnHeaderClick)	// Column Click
+    ON_WM_SIZE()
+    ON_MESSAGE(UM_FIT_COLUMNS, OnFitColumns)
 END_MESSAGE_MAP()
 
 namespace {
@@ -44,18 +50,17 @@ void CListCtrl_Sortable::SetSortArrow(int colIndex, bool ascending)
 {
     if (IsThemeEnabled())
     {
+        // Upphone: the arrow is drawn by CThemeDialog beside the label, not by the header theme
+        ThemeSetListSort(m_hWnd, colIndex, ascending);
         for (int i = 0; i < GetHeaderCtrl()->GetItemCount(); ++i)
         {
             HDITEM hditem = { 0 };
             hditem.mask = HDI_FORMAT;
             VERIFY(GetHeaderCtrl()->GetItem(i, &hditem));
             hditem.fmt &= ~(HDF_SORTDOWN | HDF_SORTUP);
-            if (i == colIndex)
-            {
-                hditem.fmt |= ascending ? HDF_SORTUP : HDF_SORTDOWN;
-            }
             VERIFY(CListCtrl_LabelTip::GetHeaderCtrl()->SetItem(i, &hditem));
         }
+        GetHeaderCtrl()->Invalidate();
     }
     else
     {
@@ -122,4 +127,90 @@ void CListCtrl_Sortable::SetSortColumn(int columnIndex, bool ascending)
     if (SortColumn(m_SortCol, m_Ascending)) {
         SetSortArrow(m_SortCol, m_Ascending);
     }
+}
+
+// Upphone: keep the columns inside the list width, so there is no horizontal scrollbar.
+// The first columns that fit their minimum width are shown, in index order, sharing the width
+// in proportion to the preferred widths; the others get width 0 until the list is wider.
+void CListCtrl_Sortable::FitColumnsEnable(const std::vector<int>& minWidths)
+{
+    m_fitMin = minWidths;
+    m_fitPref.clear();
+    for (size_t i = 0; i < m_fitMin.size(); i++) {
+        m_fitPref.push_back(max(GetColumnWidth((int)i), 1));
+    }
+    FitColumns();
+}
+
+// the user dragged a column border: the current widths become the preferred proportions
+void CListCtrl_Sortable::FitColumnsTrack(int column, int width)
+{
+    for (size_t i = 0; i < m_fitPref.size(); i++) {
+        int w = (int)i == column ? width : GetColumnWidth((int)i);
+        if (w > 0) {
+            m_fitPref[i] = w;
+        }
+    }
+    PostMessage(UM_FIT_COLUMNS);
+}
+
+void CListCtrl_Sortable::FitColumns()
+{
+    if (m_fitMin.empty() || m_fitBusy || !GetSafeHwnd()) {
+        return;
+    }
+    m_fitBusy = true;
+    // a fit can show or hide the vertical scrollbar and change the client width again
+    for (int pass = 0; pass < 2; pass++) {
+        CRect rc;
+        GetClientRect(rc);
+        int avail = rc.Width();
+        if (avail <= 0) {
+            break;
+        }
+        int count = (int)m_fitMin.size();
+        int visible = 0;
+        int minSum = 0;
+        while (visible < count) {
+            int w = MulDiv(m_fitMin[visible], dpiY, 96);
+            if (visible > 0 && minSum + w > avail) {
+                break;
+            }
+            minSum += w;
+            visible++;
+        }
+        int prefSum = 0;
+        for (int i = 0; i < visible; i++) {
+            prefSum += m_fitPref[i];
+        }
+        int used = 0;
+        for (int i = 0; i < count; i++) {
+            int w = 0;
+            if (i < visible) {
+                w = i == visible - 1 ? avail - used : MulDiv(avail, m_fitPref[i], prefSum);
+            }
+            used += w;
+            if (GetColumnWidth(i) != w) {
+                SetColumnWidth(i, w);
+            }
+        }
+        CRect after;
+        GetClientRect(after);
+        if (after.Width() == avail) {
+            break;
+        }
+    }
+    m_fitBusy = false;
+}
+
+void CListCtrl_Sortable::OnSize(UINT nType, int cx, int cy)
+{
+    CListCtrl_LabelTip::OnSize(nType, cx, cy);
+    FitColumns();
+}
+
+LRESULT CListCtrl_Sortable::OnFitColumns(WPARAM, LPARAM)
+{
+    FitColumns();
+    return 0;
 }

@@ -23,10 +23,13 @@
 #include <pjsua-lib/pjsua.h>
 #include <pjsua-lib/pjsua_internal.h>
 #include "BaseDialog.h"
+#include "ButtonEx.h"
 
 class RinginDlg : public CBaseDialog
 {
 public:
+    CButtonEx m_ButtonAnswer; // Upphone
+    CButtonEx m_ButtonDecline; // Upphone
     RinginDlg(CWnd* pParent = NULL, bool bVideo = false);	// standard constructor
     ~RinginDlg();
     enum { IDD = IDD_RINGIN };

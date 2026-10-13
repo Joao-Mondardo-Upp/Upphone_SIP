@@ -19,3 +19,9 @@ bool ThemeRefresh();
 COLORREF ThemeColor(ThemeColorId id);
 // shared brush for the current mode, never delete it
 HBRUSH ThemeBrush(ThemeColorId id);
+
+// Upphone: sort column of a list view. CThemeDialog draws the arrow beside the column label,
+// because the themed header draws it on the top edge, touching the tabs above the lists.
+void ThemeSetListSort(HWND hList, int column, bool ascending);
+bool ThemeGetListSort(HWND hList, int* column, bool* ascending);
+void ThemeClearListSort(HWND hList);
