@@ -3,6 +3,8 @@
 #include "langpack.h"
 #include "resource.h"
 
+#include <vector>
+
 LangPackStruct langPack;
 
 static void TrimString(char *str)
@@ -143,22 +145,41 @@ static int SortLangPackHashesProc2(struct LangPackEntry *arg1,struct LangPackEnt
 	return 0;
 }
 
-int LoadLangPack(const TCHAR *szLangPack)
+// Upphone: the langpack is parsed from memory, so the embedded one needs no temporary file
+struct LangPackReader {
+	const char *data;
+	size_t size;
+	size_t pos;
+};
+
+// same as fgets() on a file opened in text mode: one line with its '\n', "\r\n" read as "\n"
+static bool ReadLangPackLine(LangPackReader *reader, char *line, size_t lineSize)
 {
-	FILE *fp;
+	if (reader->pos >= reader->size) return false;
+	size_t n = 0;
+	while (reader->pos < reader->size && n + 1 < lineSize) {
+		char c = reader->data[reader->pos++];
+		if (c == '\r' && reader->pos < reader->size && reader->data[reader->pos] == '\n') continue;
+		line[n++] = c;
+		if (c == '\n') break;
+	}
+	line[n] = 0;
+	return true;
+}
+
+static int LoadLangPackData(const char *data, size_t size)
+{
+	LangPackReader reader = { data, size, 0 };
 	char line[4096] = "";
 	char *pszColon;
 	char *pszLine;
 	int entriesAlloced;
-	int startOfLine=0;
+	size_t startOfLine=0;
 	unsigned int linePos=1;
 	LCID langID;
 	UINT fileCp = CP_ACP;
 
-	lstrcpy(langPack.filename,szLangPack);
-	fp = _tfopen(szLangPack,_T("rt"));
-	if(fp==NULL) return 1;
-	fgets(line,sizeof(line),fp);
+	ReadLangPackLine(&reader,line,sizeof(line));
 	size_t lineLen = strlen(line);
 	if (lineLen >= 3 && line[0]=='\xef' && line[1]=='\xbb' && line[2]=='\xbf')
 	{
@@ -166,16 +187,16 @@ int LoadLangPack(const TCHAR *szLangPack)
 		memmove(line, line + 3, lineLen - 2);
 	}
 	TrimString(line);
-	if(lstrcmpA(line,"Language Pack")) {fclose(fp); return 2;}
+	if(lstrcmpA(line,"Language Pack")) return 2;
 	//headers
-	while(!feof(fp)) {
-		startOfLine=ftell(fp);
-		if(fgets(line,sizeof(line),fp)==NULL) break;
+	for (;;) {
+		startOfLine=reader.pos;
+		if(!ReadLangPackLine(&reader,line,sizeof(line))) break;
 		TrimString(line);
 		if(IsEmpty(line) || line[0]==';' || line[0]==0) continue;
 		if(line[0]=='[') break;
 		pszColon=strchr(line,':');
-		if(pszColon==NULL) {fclose(fp); return 3;}
+		if(pszColon==NULL) return 3;
 		*pszColon=0;
 		if(!lstrcmpA(line,"Language")) {_snprintf(langPack.language,sizeof(langPack.language),"%s",pszColon+1); TrimString(langPack.language);}
 		else if(!lstrcmpA(line,"Last-Modified-Using")) {_snprintf(langPack.lastModifiedUsing,sizeof(langPack.lastModifiedUsing),"%s",pszColon+1); TrimString(langPack.lastModifiedUsing);}
@@ -201,10 +222,9 @@ int LoadLangPack(const TCHAR *szLangPack)
 	}
 
 	//body
-	fseek(fp,startOfLine,SEEK_SET);
+	reader.pos=startOfLine;
 	entriesAlloced=0;
-	while(!feof(fp)) {
-		if(fgets(line,sizeof(line),fp)==NULL) break;
+	while(ReadLangPackLine(&reader,line,sizeof(line))) {
 		if(IsEmpty(line) || line[0]==';' || line[0]==0) continue;
 		TrimStringSimple(line);
 		ConvertBackslashes(line, fileCp);
@@ -256,11 +276,24 @@ int LoadLangPack(const TCHAR *szLangPack)
 			}
 		}
 	}
-	fclose(fp);
-
 	qsort(langPack.entry,langPack.entryCount,sizeof(LangPackEntry),(int(*)(const void*,const void*))SortLangPackHashesProc);
 
 	return 0;
+}
+
+int LoadLangPack(const TCHAR *szLangPack)
+{
+	StringCchCopy(langPack.filename,SIZEOF(langPack.filename),szLangPack);
+	FILE *fp = _tfopen(szLangPack,_T("rb"));
+	if(fp==NULL) return 1;
+	std::vector<char> data;
+	char buffer[16384];
+	size_t read;
+	while ((read = fread(buffer, 1, sizeof(buffer), fp)) > 0) {
+		data.insert(data.end(), buffer, buffer + read);
+	}
+	fclose(fp);
+	return LoadLangPackData(data.empty() ? "" : data.data(), data.size());
 }
 
 char *LangPackTranslateString(const char *szEnglish, const int W)
@@ -374,22 +407,14 @@ void LoadLangPackModule(void)
 		LoadLangPack(szLangPack);
 	}
 	else {
-		// Upphone: no external langpack, use the embedded Portuguese (Brazil) one
+		// Upphone: no external langpack, use the embedded Portuguese (Brazil) one, read straight from the resource
 		HRSRC hRes = FindResource(NULL, MAKEINTRESOURCE(IDR_LANGPACK_PTBR), RT_RCDATA);
 		HGLOBAL hData = hRes ? LoadResource(NULL, hRes) : NULL;
-		const void* data = hData ? LockResource(hData) : NULL;
+		const char* data = hData ? (const char*)LockResource(hData) : NULL;
 		DWORD size = hRes ? SizeofResource(NULL, hRes) : 0;
 		if (data && size) {
-			TCHAR szTemp[MAX_PATH];
-			if (GetTempPath(MAX_PATH, szTemp)) {
-				_tcscat(szTemp, _T("upphone_langpack_portuguesebr.txt"));
-				FILE* fp = _tfopen(szTemp, _T("wb"));
-				if (fp) {
-					fwrite(data, 1, size, fp);
-					fclose(fp);
-					LoadLangPack(szTemp);
-				}
-			}
+			langPack.filename[0] = 0;
+			LoadLangPackData(data, size);
 		}
 	}
 }

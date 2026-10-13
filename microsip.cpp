@@ -321,13 +321,15 @@ LONG WINAPI ExceptionFilter(EXCEPTION_POINTERS* ExceptionInfo)
                 root["pjsua_buddy_count"] = pjsua_get_buddy_count();
             }
             if (mainDlg && mainDlg->GetSafeHwnd()) {
-                root["pDialer"] = (UINT)mainDlg->pageDialer;
-                root["pCalls"] = (UINT)mainDlg->pageCalls;
-                root["pContacts"] = (UINT)mainDlg->pageContacts;
-                root["pTab"] = (UINT)&mainDlg->m_mainTab;
-                root["pStatusBar"] = (UINT)&mainDlg->m_bar;
-                root["pTabHWND"] = (UINT)mainDlg->m_mainTab.GetSafeHwnd();
-                root["pTabDlgWND"] = mainDlg->GetDlgItem(IDC_MAIN_TAB) ? (UINT)mainDlg->GetDlgItem(IDC_MAIN_TAB)->GetSafeHwnd() : -1;
+                // Upphone: pointers as hex text, a UINT cast truncates them on x64 (warning C4311)
+                auto ptrText = [](const void* p) { CStringA s; s.Format("%p", p); return s; };
+                root["pDialer"] = ptrText(mainDlg->pageDialer).GetString();
+                root["pCalls"] = ptrText(mainDlg->pageCalls).GetString();
+                root["pContacts"] = ptrText(mainDlg->pageContacts).GetString();
+                root["pTab"] = ptrText(&mainDlg->m_mainTab).GetString();
+                root["pStatusBar"] = ptrText(&mainDlg->m_bar).GetString();
+                root["pTabHWND"] = ptrText(mainDlg->m_mainTab.GetSafeHwnd()).GetString();
+                root["pTabDlgWND"] = mainDlg->GetDlgItem(IDC_MAIN_TAB) ? ptrText(mainDlg->GetDlgItem(IDC_MAIN_TAB)->GetSafeHwnd()).GetString() : "-1";
             }
 
             root["videoUsedTime"] = videoUsedTime;

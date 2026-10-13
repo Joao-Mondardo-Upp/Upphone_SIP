@@ -2193,8 +2193,12 @@ BOOL CmainDlg::OnInitDialog()
         tabItem.lParam = (LPARAM)pageCalls;
         m_mainTab.InsertItem(m_mainTab.GetItemCount(), &tabItem);
         pageCalls->GetWindowRect(pageRect);
-        pageCalls->SetWindowPos(NULL, 0, offset, listClientRect.Width(), listPageHeight, SWP_NOZORDER);
+        // Upphone: AutoMove measures from the initial client size (clientRect), but the window may already
+        // have the saved width (mainW): register the page at the initial width, then give it the current one.
+        // Registering it at the current width counted the extra width twice and the lists overflowed the window.
+        pageCalls->SetWindowPos(NULL, 0, offset, clientRect.Width(), listPageHeight, SWP_NOZORDER);
         AutoMove(pageCalls->m_hWnd, 0, 0, 100, 100);
+        pageCalls->SetWindowPos(NULL, 0, offset, listClientRect.Width(), listPageHeight, SWP_NOZORDER);
 
         pageContacts = new Contacts(this);
         pageContacts->OnCreated();
@@ -2203,8 +2207,9 @@ BOOL CmainDlg::OnInitDialog()
         tabItem.lParam = (LPARAM)pageContacts;
         m_mainTab.InsertItem(m_mainTab.GetItemCount(), &tabItem);
         pageContacts->GetWindowRect(pageRect);
-        pageContacts->SetWindowPos(NULL, 0, offset, listClientRect.Width(), listPageHeight, SWP_NOZORDER);
+        pageContacts->SetWindowPos(NULL, 0, offset, clientRect.Width(), listPageHeight, SWP_NOZORDER); // Upphone: see pageCalls
         AutoMove(pageContacts->m_hWnd, 0, 0, 100, 100);
+        pageContacts->SetWindowPos(NULL, 0, offset, listClientRect.Width(), listPageHeight, SWP_NOZORDER);
 
     m_mainTab.SetCurSel(accountSettings.activeTab);
 
@@ -4798,7 +4803,10 @@ void CmainDlg::ShortcutAction(Shortcut * shortcut, bool block, bool second)
 #endif
     }
     else if (shortcut->type == MSIP_SHORTCUT_MESSAGE) {
-        mainDlg->MessagesOpen(number);
+        // Upphone: chat is disabled, old "message" shortcuts do nothing
+        if (!accountSettings.disableMessaging) {
+            mainDlg->MessagesOpen(number);
+        }
     }
     else if (shortcut->type == MSIP_SHORTCUT_DTMF) {
         mainDlg->pageDialer->DTMF(number);

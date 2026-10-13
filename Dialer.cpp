@@ -561,8 +561,7 @@ BOOL Dialer::OnInitDialog()
     AutoMove(IDC_CALL, 14, 85, 72, 15);
     AutoMove(IDC_MESSAGE, 86, 85, 14, 15);
 #else
-    AutoMove(IDC_CALL, 0, 85, 84, 15);
-    AutoMove(IDC_MESSAGE, 84, 85, 16, 15);
+    AutoMove(IDC_CALL, 0, 85, 100, 15); // Upphone: no Message button beside it
 #endif
 
     AutoMove(IDC_END, 14, 85, 72, 15);
@@ -1215,7 +1214,9 @@ void Dialer::UpdateCallButton(BOOL forse, int callsCount)
 #ifdef _GLOBAL_VIDEO
                 GetDlgItem(IDC_VIDEO_CALL)->ShowWindow(SW_SHOW);
 #endif
-                GetDlgItem(IDC_MESSAGE)->ShowWindow(SW_SHOW);
+                if (!accountSettings.disableMessaging) { // Upphone: chat button stays hidden
+                    GetDlgItem(IDC_MESSAGE)->ShowWindow(SW_SHOW);
+                }
             }
         }
         state = callsCount || len ? true : false;

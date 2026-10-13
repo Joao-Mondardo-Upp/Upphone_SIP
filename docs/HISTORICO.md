@@ -1,16 +1,16 @@
 # Upphone SIP: histórico e passagem do projeto
 
-Documento para continuar o trabalho em outra máquina. Resume o que foi feito no desenvolvimento da versão 1.0.0 (outubro de 2026), por que cada decisão foi tomada e o que está pendente.
+Documento para continuar o trabalho em outra máquina. Resume o que foi feito no desenvolvimento das versões 1.0.0 e 1.1.0 (outubro de 2026), por que cada decisão foi tomada e o que está pendente.
 
 - Repositório: https://github.com/Joao-Mondardo-Upp/Upphone_SIP (público)
-- Release publicada: [v1.0.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.0.0)
+- Releases publicadas: [v1.1.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.1.0) (atual) e [v1.0.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.0.0)
 - Como montar o ambiente e compilar: [README.md](../README.md)
 
 ---
 
 ## 1. Estado atual
 
-**Upphone SIP 1.0.0 está publicado**, com instaladores e versões portáteis de 32 e 64 bits. Os binários da release foram compilados a partir da tag `v1.0.0` (commit `18dbd68`) numa pasta limpa, com `build/setup.ps1` e `build/build.ps1 -Installer`.
+**Upphone SIP 1.1.0 está publicado**, com instaladores e versões portáteis de 32 e 64 bits, compilados a partir da tag `v1.1.0` numa pasta limpa, com `build/setup.ps1` e `build/build.ps1 -Installer`. O que mudou desde a 1.0.0 está nos itens 27 a 29 da seção 3 e em `build/notas/v1.1.0.md`.
 
 | Item | Situação |
 |---|---|
@@ -104,6 +104,21 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
     - Janela de mensagens: as abas (`CClosableTabCtrl`) são desenhadas no tema, com o "x" de fechar e as setas de rolagem próprias; o histórico e o campo de texto têm a borda e a barra de rolagem do tema.
     - Registros e Contatos: as colunas ocupam a largura da lista, sem barra horizontal. Quando a janela é estreita, as últimas colunas (Duração, Informação) ficam ocultas e voltam ao alargar; arrastar uma divisória muda a proporção (`CListCtrl_Sortable::FitColumnsEnable`).
     - Seta de ordenação desenhada à direita do nome da coluna (`ThemeSetListSort`), porque a do tema do Windows fica no topo do cabeçalho, colada nas abas.
+28. **Revisão da estrutura do projeto** (13/10/2026).
+    - `microsip.vcxproj`: removidos 16 ícones antigos do MicroSIP que estavam listados mas não existem em `res/` (nenhum `.rc` os usa).
+    - `microsip.vcxproj.filters`: `Theme.*` e `DarkTabCtrl.*` incluídos, e as pastas `Data\`, `Domain\`, `Service\` e `Utils\` com a mesma caixa do `.vcxproj`.
+    - `_GLOBAL_CODECS_ENABLED` (`define.h`) com o G.729, igual à lista fixa de `settings.cpp`.
+29. **Revisão do código** (13/10/2026).
+    - **Chat retirado** (a Upp não usa). `disableMessaging = true` fixo em `settings.cpp`: sem "Mensagem" nos menus de Registros e Contatos, mensagens SIP recebidas ignoradas e sem a ação "Mensagem" nos atalhos (`ShortcutsDlg.cpp`, `mainDlg.cpp`). O botão de mensagem do discador ficou oculto e o Chamar ocupa a linha toda (`dialog.rc2`, `Dialer.cpp`). Na janela de chamadas o campo de mensagem ficou oculto e o histórico da chamada ocupa o espaço (`MessagesDlg.cpp`).
+    - **Senha do ramal protegida pelo Windows (DPAPI)** em `settings.cpp` (`IniEncrypt`/`IniDecrypt`): só o mesmo usuário no mesmo computador consegue ler. Antes era cifrada com a chave fixa `_GLOBAL_KEY`, pública neste repositório. Senhas no formato antigo são convertidas sozinhas na próxima abertura.
+    - **Langpack embutido lido direto da memória** (`lib/langpack.cpp`), sem gravar arquivo em `%TEMP%`: se a gravação falhasse, a interface caía para o inglês.
+    - **Colunas de Registros e Contatos** nunca ficam abaixo da largura mínima (`CListCtrl_Sortable::FitColumns`).
+    - `lastDark` (`ThemeDialog.h`) passou a `int`: como `BYTE`, a comparação com -1 nunca era verdadeira.
+    - **Colunas que não se ajustavam ao redimensionar a janela:** o mapa de mensagens de `CListCtrl_SortItemsEx` pulava o de `CListCtrl_Sortable` (base declarada como `CListCtrl`), então o `WM_SIZE` e o `UM_FIT_COLUMNS` nunca chegavam. O ajuste só acontecia ao abrir.
+    - **Barra de rolagem horizontal vazia** depois de encolher muito a janela: a list view mantinha a barra calculada para as larguras antigas. `FitColumns` termina com um `Scroll(0, 0)`, que faz a lista conferir as barras de novo.
+    - **Registros e Contatos mais largos que a janela** quando o app abria com uma largura salva (`mainW`): as páginas eram registradas no `AutoMove` já com a largura salva e o acréscimo era somado de novo (`mainDlg.cpp`). As colunas da direita ficavam fora da janela.
+    - **Instalador:** os atalhos do Menu Iniciar e da área de trabalho levam o `AppUserModelID` "Upphone SIP", o mesmo que o app usa, para a janela aberta ficar no botão do atalho e com o ícone certo.
+    - Avisos de compilação: endereços do `crash-dump` como texto (truncavam no x64, C4311) e `#undef`/`#ifndef` nas macros redefinidas (C4005) em `config_site.h`, `lib/MessageBoxX.h` e `lib/Hid.cpp`. Os valores não mudaram.
 
 ---
 
@@ -114,10 +129,13 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
 | Sem tela de configurações | Já vinha assim no código recebido: os valores são fixos para os clientes |
 | G.711 A-law, u-law e G.729 | Exigência do PABX da Upp |
 | Sem vídeo, Opus e TLS/SRTP | Não eram necessários na 1.0.0 e reduzem dependências (OpenSSL, ffmpeg etc.) |
+| SRTP compilado, mas sempre desligado | O `config_site.h` mantém `PJMEDIA_HAS_SRTP 1` (sem TLS nem DTLS), mas o diálogo de conta grava o SRTP vazio (`AccountDlg.cpp`), ou seja, desligado. Tirar do `config_site.h` exigiria recompilar e testar o pjproject de novo |
 | Sem atualização do MicroSIP | Ela substituiria o Upphone pelo MicroSIP original |
 | Sem prazo de validade | Pedido da Upp ("prazo infinito"); o app não se atualiza sozinho |
 | Sem relatório de travamento | Os dados iriam para os desenvolvedores do MicroSIP |
 | Sem CONF e REC | Pedido da Upp |
+| Sem chat | A Upp não usa. Desligado por `disableMessaging` e controles ocultos, sem apagar o código do MicroSIP |
+| Senha do ramal com DPAPI | A chave fixa do MicroSIP é pública no repositório. Efeito colateral: o `Upphone.ini` (e um arquivo de configurações exportado) levado para outro usuário ou computador chega sem a senha, que precisa ser digitada de novo |
 | Nome interno "MicroSIP" mantido | Classe da janela e detecção de instância única; trocar não traz benefício visível |
 | Licença GPL v3 | MicroSIP e pjproject são GPL v2 ou posterior; o bcg729 é GPL v3 |
 | Repositório público | Escolha da Upp. A GPL exige entregar o código-fonte a quem recebe o app |
@@ -130,7 +148,7 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
 |---|---|
 | `Theme.h/.cpp` | Paleta claro/escuro, leitura do modo do Windows, `UPPHONE_THEME`, coluna ordenada das listas |
 | `define.h` | `_GLOBAL_BRAND_ACCENT`, macros `_GLOBAL_THEME_*`, links upphone.com.br, nome "Upphone SIP" |
-| `const.h` | Versão 1.0.0, timestamp, empresa, vídeo desligado |
+| `const.h` | Versão (1.1.0), timestamp, empresa, vídeo desligado |
 | `ThemeDialog.h/.cpp` | Cores dos controles (`OnCtlColor`), borda dos campos e do chat, cabeçalho e seta de ordenação das listas, troca de tema ao vivo |
 | `ClosableTabCtrl.h/.cpp` | Abas da janela de mensagens desenhadas no tema, botão de fechar e setas de rolagem |
 | `CListCtrl_Sortable.h/.cpp` | Colunas ajustadas à largura da lista, seta de ordenação via `ThemeSetListSort` |
@@ -159,6 +177,7 @@ Várias alterações em arquivos do MicroSIP estão marcadas com `// Upphone:` (
 
 ## 6. Armadilhas conhecidas
 
+- **Use `git clone`, não o ZIP do GitHub.** O ZIP ("Download ZIP") não traz a pasta `.git`, e o `setup.ps1` e o `release.ps1` precisam dela. Para aproveitar um ZIP já extraído: `git init`, `git remote add origin <url>`, `git fetch origin` e `git reset --mixed origin/main`.
 - **Caminho curto.** Monte o build em algo como `C:\src\upphone`. Caminhos longos estouram o limite de 260 caracteres no build do pjproject.
 - **PowerShell bloqueia scripts** num Windows novo: rode com `powershell -ExecutionPolicy Bypass -File ...`.
 - **MFC e ATL** precisam estar marcados no Visual Studio Installer (Build Tools → Modificar → "ATL do C++" e "MFC do C++"). Sem eles, o erro é `MSB8041`.
@@ -169,6 +188,8 @@ Várias alterações em arquivos do MicroSIP estão marcadas com `// Upphone:` (
   - `"$var?x"` é lido como nome de variável (use `"${var}?x"`).
 - **Controle Inteligente de Aplicativos (Windows 11)** bloqueia o instalador **sem a opção "Executar assim mesmo"**, porque ele não tem assinatura digital. Só a assinatura resolve. Para testar enquanto isso: use um PC sem esse recurso ou desligue-o num PC de teste (pode ser difícil religar).
 - **SmartScreen:** "Mais informações → Executar assim mesmo".
+- **`Upphone.ini` copiado de outro PC ou usuário:** a senha do ramal não é lida (DPAPI) e o ramal não registra até a senha ser digitada de novo no cadastro da conta. É o esperado.
+- **Ícone em branco na barra de tarefas:** o app usa o AppUserModelID "Upphone SIP" e o Windows agrupa a janela sob qualquer atalho fixado com esse ID. Um atalho fixado antigo que aponta para um `.exe` que não existe mais (por exemplo `microsip.exe`, de antes do nome `Upphone.exe`) aparece como uma folha em branco. Solução: desafixar esse atalho e fixar o Upphone de novo.
 - **Duas cópias abertas** (portátil e instalada) entram em conflito, porque o app aceita uma só instância.
 - **Inicialização automática:** o app sempre se registra em `HKCU\...\Run` com o caminho do `.exe` que está rodando. Ao testar outro build, o registro passa a apontar para ele.
 - **Testar telas de chamada sem PABX:** o app pode ligar para ele mesmo (`sip:teste@127.0.0.1`) para abrir a chamada recebida. Para uma chamada em andamento estável, use um atendedor SIP local que responda 200 OK. Envie os comandos (número, `/answer`, `/hangupall`) por `WM_COPYDATA` à janela de classe `MicroSIP` do processo `Upphone`: pela linha de comando o app chama `SetForegroundWindow`, e o `Start-Process` do PowerShell 5.1 altera os argumentos (`/minimized` vira um "Número inválido").

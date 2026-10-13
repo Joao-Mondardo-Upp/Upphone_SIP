@@ -36,11 +36,22 @@
 
 #include <string.h>
 
+// Upphone: newer Windows SDKs (hidusage.h) define some of these with the same values
+#ifndef HID_USAGE_TELEPHONY_HOOK_SWITCH
 #define HID_USAGE_TELEPHONY_HOOK_SWITCH                 ((USAGE) 0x20)
+#endif
+#ifndef HID_USAGE_TELEPHONY_MUTE
 #define HID_USAGE_TELEPHONY_MUTE                 ((USAGE) 0x2F)
+#endif
+#ifndef HID_USAGE_TELEPHONY_REDIAL
 #define HID_USAGE_TELEPHONY_REDIAL                 ((USAGE) 0x24)
+#endif
+#ifndef HID_USAGE_TELEPHONY_FLASH
 #define HID_USAGE_TELEPHONY_FLASH                 ((USAGE) 0x21)
+#endif
+#ifndef HID_USAGE_TELEPHONY_LINE_BUSY
 #define HID_USAGE_TELEPHONY_LINE_BUSY                 ((USAGE) 0x97)
+#endif
 
 hid_device *Hid::m_hDevice = NULL;
 //bool Hid::m_stateOnline = false;

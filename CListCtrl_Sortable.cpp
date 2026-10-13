@@ -169,29 +169,62 @@ void CListCtrl_Sortable::FitColumns()
             break;
         }
         int count = (int)m_fitMin.size();
+        std::vector<int> minWidth(count);
         int visible = 0;
         int minSum = 0;
         while (visible < count) {
-            int w = MulDiv(m_fitMin[visible], dpiY, 96);
-            if (visible > 0 && minSum + w > avail) {
+            minWidth[visible] = MulDiv(m_fitMin[visible], dpiY, 96);
+            if (visible > 0 && minSum + minWidth[visible] > avail) {
                 break;
             }
-            minSum += w;
+            minSum += minWidth[visible];
             visible++;
         }
+        // proportional share, but never below the minimum: a column that would get less is
+        // fixed at its minimum and the rest is shared again among the others
+        std::vector<int> width(count, 0);
+        std::vector<bool> atMin(count, false);
+        int rest = avail;
+        for (bool changed = true; changed;) {
+            changed = false;
+            int prefSum = 0;
+            for (int i = 0; i < visible; i++) {
+                if (!atMin[i]) {
+                    prefSum += m_fitPref[i];
+                }
+            }
+            for (int i = 0; i < visible && prefSum; i++) {
+                if (!atMin[i] && MulDiv(rest, m_fitPref[i], prefSum) < minWidth[i]) {
+                    atMin[i] = true;
+                    width[i] = minWidth[i];
+                    rest -= minWidth[i];
+                    changed = true;
+                }
+            }
+        }
         int prefSum = 0;
+        int last = visible - 1; // takes the rounding remainder
         for (int i = 0; i < visible; i++) {
-            prefSum += m_fitPref[i];
+            if (!atMin[i]) {
+                prefSum += m_fitPref[i];
+                last = i;
+            }
         }
         int used = 0;
-        for (int i = 0; i < count; i++) {
-            int w = 0;
-            if (i < visible) {
-                w = i == visible - 1 ? avail - used : MulDiv(avail, m_fitPref[i], prefSum);
+        for (int i = 0; i < visible; i++) {
+            if (!atMin[i] && i != last) {
+                width[i] = MulDiv(rest, m_fitPref[i], prefSum);
             }
-            used += w;
-            if (GetColumnWidth(i) != w) {
-                SetColumnWidth(i, w);
+            if (i != last) {
+                used += width[i];
+            }
+        }
+        if (visible > 0) {
+            width[last] = avail - used;
+        }
+        for (int i = 0; i < count; i++) {
+            if (GetColumnWidth(i) != width[i]) {
+                SetColumnWidth(i, width[i]);
             }
         }
         CRect after;
@@ -199,6 +232,11 @@ void CListCtrl_Sortable::FitColumns()
         if (after.Width() == avail) {
             break;
         }
+    }
+    // after a big shrink the list view keeps the horizontal scrollbar it showed for the old widths;
+    // a zero scroll makes it check the scrollbars again
+    if (GetStyle() & WS_HSCROLL) {
+        Scroll(CSize(0, 0));
     }
     m_fitBusy = false;
 }

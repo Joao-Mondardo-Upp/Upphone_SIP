@@ -22,7 +22,9 @@
 #include "Calls.h"
 #include "mainDlg.h"
 
-BEGIN_MESSAGE_MAP(CListCtrl_SortItemsEx, CListCtrl)
+// Upphone: base is CListCtrl_Sortable (was CListCtrl), otherwise its WM_SIZE and UM_FIT_COLUMNS
+// handlers never run and the columns are not fitted again when the window is resized
+BEGIN_MESSAGE_MAP(CListCtrl_SortItemsEx, CListCtrl_Sortable)
 	ON_NOTIFY_REFLECT_EX(LVN_COLUMNCLICK, OnHeaderClick)	// Column Click
 END_MESSAGE_MAP()
 

@@ -98,8 +98,22 @@ BOOL MessagesDlg::OnInitDialog()
     AutoMove(IDC_TRANSFER, 100, 0, 0, 0);
     AutoMove(IDC_HOLD, 100, 0, 0, 0);
     AutoMove(IDC_END, 100, 0, 0, 0);
-    AutoMove(IDC_MESSAGES_LIST, 0, 0, 100, 80);
-    AutoMove(IDC_MESSAGE, 0, 80, 100, 20);
+    if (accountSettings.disableMessaging) {
+        // Upphone: chat not used, hide the message box and give its space to the call log
+        CRect listRect, messageRect;
+        GetDlgItem(IDC_MESSAGES_LIST)->GetWindowRect(&listRect);
+        GetDlgItem(IDC_MESSAGE)->GetWindowRect(&messageRect);
+        ScreenToClient(&listRect);
+        ScreenToClient(&messageRect);
+        listRect.bottom = messageRect.bottom;
+        GetDlgItem(IDC_MESSAGES_LIST)->MoveWindow(&listRect, FALSE);
+        GetDlgItem(IDC_MESSAGE)->ShowWindow(SW_HIDE);
+        AutoMove(IDC_MESSAGES_LIST, 0, 0, 100, 100);
+    }
+    else {
+        AutoMove(IDC_MESSAGES_LIST, 0, 0, 100, 80);
+        AutoMove(IDC_MESSAGE, 0, 80, 100, 20);
+    }
     lastCall = NULL;
 
     HICON m_hIcon = theApp.LoadIcon(IDI_MAINFRAME);
@@ -515,8 +529,10 @@ MessagesContact* MessagesDlg::AddTab(CString address, BOOL activate, pjsua_call_
         }
         if (show) {
             ShowWindow(SW_SHOW);
-            CRichEditCtrl* richEdit = (CRichEditCtrl*)GetDlgItem(IDC_MESSAGE);
-            GotoDlgCtrl(richEdit);
+            if (!accountSettings.disableMessaging) { // Upphone: the message box is hidden
+                CRichEditCtrl* richEdit = (CRichEditCtrl*)GetDlgItem(IDC_MESSAGE);
+                GotoDlgCtrl(richEdit);
+            }
         }
     }
     return messagesContact;
