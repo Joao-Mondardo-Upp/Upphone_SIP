@@ -2695,6 +2695,7 @@ void CmainDlg::MainPopupMenu(bool isMenuButton)
         tracker->AppendMenu(MF_SEPARATOR);
         separator = true;
     }
+    tracker->AppendMenu(MF_STRING, ID_UPDATES, Translate(_T("Check for Updates"))); // Upphone
     str = Translate(_T("Visit Website"));
     str.Append(_T("\tCtrl+W"));
     tracker->AppendMenu(MF_STRING, ID_MENU_WEBSITE, str);
@@ -3158,6 +3159,9 @@ void CmainDlg::OnTimer(UINT_PTR TimerVal)
         KillTimer(IDT_TIMER_SAVE);
         accountSettings.SettingsSave();
     }
+    else if (TimerVal == IDT_TIMER_UPDATES) {
+        CheckUpdatesIfDue(); // Upphone
+    }
     else if (TimerVal == IDT_TIMER_DIRECTORY) {
         UsersDirectoryLoad(true);
     }
@@ -3236,34 +3240,9 @@ void CmainDlg::PJCreateRaw()
         accountSettings.audioCodecs = _T(_GLOBAL_CODECS_ENABLED);
     }
 
-    // check updates
-    if (accountSettings.updatesInterval != _T("never"))
-    {
-        CTime t = CTime::GetCurrentTime();
-        time_t time = t.GetTime();
-        int days;
-        if (accountSettings.updatesInterval == _T("daily"))
-        {
-            days = 1;
-        }
-        else if (accountSettings.updatesInterval == _T("monthly"))
-        {
-            days = 30;
-        }
-        else if (accountSettings.updatesInterval == _T("quarterly"))
-        {
-            days = 90;
-        }
-        else
-        {
-            days = 7;
-        }
-        if (accountSettings.updatesInterval == _T("always") || accountSettings.checkUpdatesTime + days * 86400 < time) {
-            CheckUpdates();
-            accountSettings.checkUpdatesTime = time;
-            accountSettings.SettingsSave();
-        }
-    }
+    // check updates (Upphone: also every hour while the app stays open, see CheckUpdatesIfDue)
+    CheckUpdatesIfDue();
+    SetTimer(IDT_TIMER_UPDATES, 60 * 60 * 1000, NULL);
 
 #ifdef _GLOBAL_VIDEO
     int i = 0;
@@ -5867,90 +5846,184 @@ void CmainDlg::OnCheckUpdates()
     CheckUpdates();
 }
 
+// Upphone: new versions are the GitHub releases of the Upphone repository (the MicroSIP update channel
+// would replace this build with stock MicroSIP). The certificate is validated and the page opened is fixed.
 void CmainDlg::CheckUpdates()
 {
-    // Upphone: MicroSIP update channel disabled (would replace this build with stock MicroSIP)
-    return;
+    URLGetAsync(_T(_GLOBAL_UPDATES_API), m_hWnd, UM_UPDATE_CHECKER_LOADED, 0, _T(""),
+        _T("Accept: application/vnd.github+json\r\nUser-Agent: Upphone-SIP\r\n"), _T(""), _T(""), NULL, true);
 }
 
-void CmainDlg::CheckUpdatesMicroSIP()
+// Upphone: once per updatesInterval, at start and then on the hourly IDT_TIMER_UPDATES while the app stays open
+void CmainDlg::CheckUpdatesIfDue()
 {
-    CString url;
-    url = _T("http://update.microsip.org/softphone-update.txt");
-    url.AppendFormat(_T("?version=%s&client=%s&lang=%s&type=%s"),
-        _T(_GLOBAL_VERSION),
-        CString(urlencode(MSIP::Utf8EncodeUni(CString(
-            _T(_GLOBAL_NAME_VISIBLE)
-        )))),
-        CString(urlencode(MSIP::Utf8EncodeUni(CString(langPack.language)))),
-        accountSettings.isPortable ? _T("portable") : _T("exe"));
-#ifndef _GLOBAL_VIDEO
-    url.Append(_T("&lite=1"));
-#endif
-    URLGetAsync(url, m_hWnd, UM_UPDATE_CHECKER_LOADED);
+    if (accountSettings.updatesInterval == _T("never")) {
+        return;
+    }
+    int days = 7;
+    if (accountSettings.updatesInterval == _T("daily")) {
+        days = 1;
+    }
+    else if (accountSettings.updatesInterval == _T("monthly")) {
+        days = 30;
+    }
+    else if (accountSettings.updatesInterval == _T("quarterly")) {
+        days = 90;
+    }
+    time_t now = CTime::GetCurrentTime().GetTime();
+    if (accountSettings.updatesInterval != _T("always") && accountSettings.checkUpdatesTime + days * 86400 >= now) {
+        return;
+    }
+    if (messagesDlg && messagesDlg->GetCallsCount()) {
+        return; // not during a call, the next hourly tick tries again
+    }
+    CheckUpdates(); // checkUpdatesTime is saved when the answer arrives, so a failed check is retried
 }
 
+// Upphone: "v1.2.3" -> {1, 2, 3, 0}; false when it is not a version number
+static bool UpdateParseVersion(CString text, int parts[4])
+{
+    text.Trim();
+    if (text.Left(1).CompareNoCase(_T("v")) == 0) {
+        text = text.Mid(1);
+    }
+    for (int i = 0; i < 4; i++) {
+        parts[i] = 0;
+    }
+    int count = 0;
+    int pos = 0;
+    CString token = text.Tokenize(_T("."), pos);
+    while (!token.IsEmpty()) {
+        if (count == 4 || token.GetLength() > 5 || token.SpanIncluding(_T("0123456789")) != token) {
+            return false;
+        }
+        parts[count++] = _ttoi(token);
+        token = text.Tokenize(_T("."), pos);
+    }
+    return count > 0;
+}
+
+static int UpdateCompareVersions(const int a[4], const int b[4])
+{
+    for (int i = 0; i < 4; i++) {
+        if (a[i] != b[i]) {
+            return a[i] > b[i] ? 1 : -1;
+        }
+    }
+    return 0;
+}
+
+// Upphone: bullets of the "## O que mudou" section of the release notes, as plain text for the message box
+static CString UpdateNotesSummary(const CString& body)
+{
+    CString result;
+    bool inSection = false;
+    int bullets = 0;
+    int pos = 0;
+    CString token = body.Tokenize(_T("\n"), pos);
+    while (!token.IsEmpty()) {
+        CString line = token;
+        line.Trim();
+        if (line.Left(3) == _T("## ")) {
+            if (inSection) {
+                break;
+            }
+            CString title = line.Mid(3);
+            title.Trim();
+            inSection = title.CompareNoCase(_T("O que mudou")) == 0;
+        }
+        else if (inSection && line.Left(2) == _T("- ")) {
+            if (bullets == 6) {
+                result.Append(_T("\r\n..."));
+                break;
+            }
+            CString text = line.Mid(2);
+            text.Replace(_T("**"), _T(""));
+            text.Replace(_T("`"), _T(""));
+            if (text.GetLength() > 120) {
+                text = text.Left(117) + _T("...");
+            }
+            if (!result.IsEmpty()) {
+                result.Append(_T("\r\n"));
+            }
+            result.AppendFormat(_T("\x2022 %s"), text.GetString());
+            bullets++;
+        }
+        token = body.Tokenize(_T("\n"), pos);
+    }
+    return result;
+}
+
+// Upphone: answer of CheckUpdates, the latest release of the repository on GitHub
 LRESULT CmainDlg::OnUpdateCheckerLoaded(WPARAM wParam, LPARAM lParam)
 {
-    bool found = false;
     URLGetAsyncData* response = (URLGetAsyncData*)wParam;
+    bool manual = updateCheckerShow;
+    updateCheckerShow = false;
+    bool ok = false;
+    CString version;
+    CString notes;
     if (response->statusCode == 200) {
-        if (!response->body.IsEmpty() && response->body.Left(4) == "http") {
-            int pos = response->body.Find("\n");
-            if (pos > 0) {
-                CStringA url = response->body.Left(pos);
-                url.Trim();
-                bool allowed = false;
-                DWORD dwServiceType;
-                CString strServer;
-                CString strObject;
-                INTERNET_PORT nPort;
-                if (AfxParseURL(CString(url), dwServiceType, strServer, strObject, nPort) && dwServiceType == AFX_INET_SERVICE_HTTPS && strServer.Right(13) == _T(".microsip.org")) {
-                    allowed = true;
-                }
-                int pos1 = response->body.Find("\n", pos + 1);
-                if (allowed && pos1 > pos) {
-                    CStringA version = response->body.Mid(pos, pos1 - pos);
-                    version.Trim();
-                    CString info = MSIP::Utf8DecodeUni(response->body.Mid(pos1 + 1));
-                    info.Trim();
-                    CStringA our = _GLOBAL_VERSION;
-                    int count = version.Replace(".", ".");
-                    if (count < 4) {
-                        int i = count;
-                        while (i < 3) {
-                            version.Append(".0");
-                            i++;
-                        }
-                        count = our.Replace(".", ".");
-                        i = count;
-                        while (i < 3) {
-                            our.Append(".0");
-                            i++;
-                        }
-                        unsigned long ia = inet_addr(version.GetString());
-                        if (ia != -1 && htonl(ia) > htonl(inet_addr(our.GetString()))) {
-                            CString caption;
-                            caption.Format(_T("%s %s"), _T(_GLOBAL_NAME_VISIBLE), Translate(_T("Update Available")));
-                            CString message = Translate(_T("Do you want to update now?"));
-                            if (!info.IsEmpty()) {
-                                message.AppendFormat(_T("\r\n\r\n%s"), info);
-                            }
-                            found = true;
-                            if (::MessageBox(this->m_hWnd, message, caption, MB_YESNO | MB_ICONQUESTION) == IDYES) {
-                                MSIP::OpenURL(MSIP::Utf8DecodeUni(url));
-                            }
-                        }
-                    }
-                }
+        Json::Value root;
+        Json::Reader reader;
+        if (reader.parse((LPCSTR)response->body, root, false) && root.isObject()
+            && root.isMember("tag_name") && root["tag_name"].isString()) {
+            version = MSIP::Utf8DecodeUni(root["tag_name"].asString().c_str());
+            if (root.isMember("body") && root["body"].isString()) {
+                notes = UpdateNotesSummary(MSIP::Utf8DecodeUni(root["body"].asString().c_str()));
             }
+            ok = true;
         }
     }
     delete response;
-    if (updateCheckerShow && !found) {
-        MessageBox(_T("No new version found"), _T(""), MB_ICONINFORMATION);
+    if (ok) {
+        accountSettings.checkUpdatesTime = (int)CTime::GetCurrentTime().GetTime();
+        accountSettings.GlobalSave();
     }
-    updateCheckerShow = false;
+    int latest[4];
+    int current[4];
+    bool newer = ok && UpdateParseVersion(version, latest) && UpdateParseVersion(_T(_GLOBAL_VERSION), current)
+        && UpdateCompareVersions(latest, current) > 0;
+    if (newer) {
+        if (version.Left(1).CompareNoCase(_T("v")) == 0) {
+            version = version.Mid(1);
+        }
+        // a version the user said "No" to is offered again only by "Check for Updates"
+        if (manual || version != accountSettings.updatesDeclined) {
+            if (!manual && messagesDlg->GetCallsCount()) {
+                // a call started meanwhile: ask on the next hourly check
+                accountSettings.checkUpdatesTime = 0;
+                return 0;
+            }
+            CString caption;
+            caption.Format(_T("%s - %s"), _T(_GLOBAL_NAME_VISIBLE), Translate(_T("Update Available")));
+            // the question comes right after the version, so it is seen even when the notes are long
+            CString message;
+            message.Format(Translate(_T("Version %s is available. You are using version %s.")), version.GetString(), _T(_GLOBAL_VERSION));
+            message.AppendFormat(_T("\r\n%s"), Translate(_T("Do you want to download it now?")));
+            if (!notes.IsEmpty()) {
+                message.AppendFormat(_T("\r\n\r\n%s\r\n%s"), Translate(_T("What's new:")), notes.GetString());
+            }
+            // the automatic notice has no owner: owned by the main window it would bring it out of the tray;
+            // topmost, so it is not hidden behind other windows
+            if (::MessageBox(manual ? m_hWnd : NULL, message, caption, MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST) == IDYES) {
+                accountSettings.updatesDeclined.Empty();
+                MSIP::OpenURL(_T(_GLOBAL_UPDATES_PAGE));
+            }
+            else {
+                accountSettings.updatesDeclined = version;
+            }
+            accountSettings.GlobalSave();
+        }
+    }
+    else if (manual) {
+        if (ok) {
+            ::MessageBox(m_hWnd, Translate(_T("No new version found")), _T(_GLOBAL_NAME_VISIBLE), MB_ICONINFORMATION | MB_SETFOREGROUND);
+        }
+        else {
+            ::MessageBox(m_hWnd, Translate(_T("Could not check for updates. Check your internet connection and try again.")), _T(_GLOBAL_NAME_VISIBLE), MB_ICONWARNING | MB_SETFOREGROUND);
+        }
+    }
     return 0;
 }
 

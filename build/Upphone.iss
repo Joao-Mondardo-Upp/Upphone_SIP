@@ -1,9 +1,9 @@
 ; Instalador do Upphone SIP (Inno Setup 6)
 ; Normalmente chamado pelo build.ps1:
-;   ISCC.exe /DAppVersion=1.1.0 /DPlatform=x64 /DSourceDir=..\dist\1.1.0\x64 Upphone.iss
+;   ISCC.exe /DAppVersion=1.2.0 /DPlatform=x64 /DSourceDir=..\dist\1.2.0\x64 Upphone.iss
 
 #ifndef AppVersion
-  #define AppVersion "1.1.0"
+  #define AppVersion "1.2.0"
 #endif
 #ifndef Platform
   #define Platform "x64"

@@ -153,6 +153,7 @@ struct AccountSettings {
 	bool isPortable;
 
 	int checkUpdatesTime;
+	CString updatesDeclined; // Upphone: version the user said "No" to, it is not offered again automatically
 
 	bool minimized;
 
