@@ -304,6 +304,7 @@ void AccountSettings::Init()
         }
         // Configuracao fixa: sempre executar na inicializacao do sistema
         msip_startup_set(true);
+        msip_uri_handlers_set(); // Upphone: click-to-call (tel:, sip:, callto:)
     }
     //--
 

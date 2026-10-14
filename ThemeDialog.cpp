@@ -135,6 +135,97 @@ static LRESULT CALLBACK DarkListSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam
     return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
+// Upphone: push buttons with an icon (Hold, Mute, Transfer) painted like the dialer keys: rounded face with the
+// accent color when checked or pressed. Old 16-color icons are black, invisible on the dark theme, so they are
+// drawn as a silhouette in the text color; 32-bit icons (Mute) are drawn as they are.
+static bool IconHasAlpha(HICON icon)
+{
+    ICONINFO info = {};
+    if (!GetIconInfo(icon, &info)) {
+        return false;
+    }
+    BITMAP bm = {};
+    bool alpha = info.hbmColor && GetObject(info.hbmColor, sizeof(bm), &bm) && bm.bmBitsPixel == 32;
+    if (info.hbmColor) {
+        DeleteObject(info.hbmColor);
+    }
+    if (info.hbmMask) {
+        DeleteObject(info.hbmMask);
+    }
+    return alpha;
+}
+
+static bool DrawThemedIconButton(LPNMCUSTOMDRAW cd)
+{
+    HWND hWnd = cd->hdr.hwndFrom;
+    wchar_t cls[16]{};
+    GetClassNameW(hWnd, cls, _countof(cls));
+    if (wcscmp(cls, L"Button") != 0) {
+        return false;
+    }
+    LONG_PTR style = GetWindowLongPtr(hWnd, GWL_STYLE);
+    LONG_PTR type = style & BS_TYPEMASK;
+    bool push = type == BS_PUSHBUTTON || type == BS_DEFPUSHBUTTON;
+    bool pushLikeCheck = (type == BS_CHECKBOX || type == BS_AUTOCHECKBOX) && (style & BS_PUSHLIKE);
+    if (!(style & BS_ICON) || !(push || pushLikeCheck)) {
+        return false;
+    }
+    if (cd->dwDrawStage != CDDS_PREERASE && cd->dwDrawStage != CDDS_PREPAINT) {
+        return false;
+    }
+    HDC hdc = cd->hdc;
+    RECT rc = cd->rc;
+    int dpi = GetDeviceCaps(hdc, LOGPIXELSY);
+    bool disabled = (cd->uItemState & CDIS_DISABLED) != 0;
+    bool pressed = (cd->uItemState & CDIS_SELECTED) != 0;
+    bool hot = (cd->uItemState & CDIS_HOT) != 0;
+    bool checked = pushLikeCheck && ::SendMessage(hWnd, BM_GETCHECK, 0, 0) == BST_CHECKED;
+    bool accent = !disabled && (checked || pressed);
+
+    HBRUSH bg = CreateSolidBrush(_GLOBAL_THEME_BG);
+    FillRect(hdc, &rc, bg);
+    DeleteObject(bg);
+    RECT face = rc;
+    InflateRect(&face, -1, -1);
+    HBRUSH faceBrush = CreateSolidBrush(accent ? _GLOBAL_BRAND_ACCENT : (hot && !disabled ? _GLOBAL_THEME_SURFACE_HOT : _GLOBAL_THEME_SURFACE));
+    HPEN borderPen = CreatePen(PS_SOLID, 1, accent || (hot && !disabled) ? _GLOBAL_BRAND_ACCENT : _GLOBAL_THEME_BORDER);
+    HGDIOBJ oldBrush = SelectObject(hdc, faceBrush);
+    HGDIOBJ oldPen = SelectObject(hdc, borderPen);
+    int radius = MulDiv(6, dpi, 96);
+    RoundRect(hdc, face.left, face.top, face.right, face.bottom, radius, radius);
+    SelectObject(hdc, oldBrush);
+    SelectObject(hdc, oldPen);
+    DeleteObject(faceBrush);
+    DeleteObject(borderPen);
+
+    HICON icon = (HICON)::SendMessage(hWnd, BM_GETIMAGE, IMAGE_ICON, 0);
+    if (icon) {
+        int size = MulDiv(16, dpi, 96);
+        size = min(size, (int)min(rc.right - rc.left, rc.bottom - rc.top) - 4);
+        int x = rc.left + (rc.right - rc.left - size) / 2;
+        int y = rc.top + (rc.bottom - rc.top - size) / 2;
+        if (IconHasAlpha(icon)) {
+            DrawIconEx(hdc, x, y, icon, size, size, 0, NULL, DI_NORMAL);
+        }
+        else {
+            HBRUSH glyph = CreateSolidBrush(accent ? RGB(255, 255, 255) : (disabled ? _GLOBAL_THEME_TEXT2 : _GLOBAL_THEME_TEXT));
+            DrawState(hdc, glyph, NULL, (LPARAM)icon, 0, x, y, size, size, DST_ICON | DSS_MONO);
+            DeleteObject(glyph);
+        }
+    }
+    return true;
+}
+
+BOOL CThemeDialog::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult)
+{
+    LPNMHDR hdr = (LPNMHDR)lParam;
+    if (m_bAllowDark && hdr && hdr->code == NM_CUSTOMDRAW && DrawThemedIconButton((LPNMCUSTOMDRAW)lParam)) {
+        *pResult = CDRF_SKIPDEFAULT;
+        return TRUE;
+    }
+    return CDialog::OnNotify(wParam, lParam, pResult);
+}
+
 static bool IsComboEdit(HWND hWnd)
 {
     wchar_t parentCls[32]{};

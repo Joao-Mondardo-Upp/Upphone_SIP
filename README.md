@@ -7,6 +7,8 @@ Softphone SIP para Windows da **Upp Tecnologia**, baseado no [MicroSIP](https://
 - Codecs G.711 A-law, G.711 u-law e G.729 (bcg729)
 - Configurações fixas no código (sem tela de configurações), veja `AccountSettings::SettingsLoad` em `settings.cpp`
 - Aviso de versão nova: uma vez por dia o app consulta a última release deste repositório no GitHub e oferece abrir a página de download (menu "Verificar por atualizações" para consultar na hora)
+- Sons próprios embutidos no `.exe` (toque de chamada, chamando, segunda chamada durante outra e fim de chamada), gerados por `build/gerar_sons.py`; um `.wav` com o mesmo nome ao lado do `Upphone.exe` substitui o padrão
+- Ligar ao clicar em links `tel:`, `sip:` e `callto:` (o Upphone se registra para eles ao abrir e aparece em Configurações > Aplicativos padrão)
 - Sem envio de relatórios de travamento e sem prazo de validade
 - Sem chat (mensagens SIP)
 - Senha do ramal protegida pelo Windows (DPAPI): só o mesmo usuário no mesmo computador consegue lê-la
@@ -56,7 +58,7 @@ C:\src\upphone\microsip\build\build.ps1 -Installer
 
 O `setup.ps1` cria `C:\src\upphone` com o pjproject no commit fixado e coloca este repositório em `C:\src\upphone\microsip`, no mesmo commit do script. Use um caminho curto: o build do pjproject passa do limite de 260 caracteres do Windows em pastas muito longas.
 
-Para compilar uma versão publicada, faça `git checkout v1.2.0` (ou outra tag) no clone antes de rodar o `setup.ps1`.
+Para compilar uma versão publicada, faça `git checkout v1.3.0` (ou outra tag) no clone antes de rodar o `setup.ps1`.
 
 O `build.ps1`:
 

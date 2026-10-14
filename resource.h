@@ -125,6 +125,11 @@
 #define IDB_VMAIL_GREY_DOWN_175 326
 #define IDB_UPPHONE_LOGO 327
 #define IDR_LANGPACK_PTBR 328
+// Upphone: standard sounds embedded in the exe (build/gerar_sons.py)
+#define IDR_SOUND_RINGTONE 329
+#define IDR_SOUND_RINGING 330
+#define IDR_SOUND_RINGING2 331
+#define IDR_SOUND_HANGUP 332
 #define IDC_UPPHONE_LOGO 1990
 
 #define IDR_MENU_CONTACT	200

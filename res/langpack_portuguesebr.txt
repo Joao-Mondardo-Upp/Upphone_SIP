@@ -647,3 +647,11 @@ Deseja baixar agora?
 Você já está usando a versão mais recente.
 [Could not check for updates. Check your internet connection and try again.]
 Não foi possível verificar se há uma versão nova. Confira a conexão com a internet e tente de novo.
+[Call on Remote Hold]
+Chamada colocada em espera pelo outro lado
+[Call on Local Hold]
+Chamada em espera
+[Call on Hold]
+Chamada em espera
+[Call is Active]
+Chamada ativa

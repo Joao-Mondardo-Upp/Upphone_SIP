@@ -1888,6 +1888,90 @@ void msip_startup_set(bool enable)
     }
 }
 
+// Upphone: click-to-call. Registers Upphone (current user) as an application for tel:, sip: and callto: links,
+// so it shows up in the Windows default apps, and takes the link classes that are free, stale or already
+// Upphone's. A handler that another program registered for the user is left alone.
+static void RegSetStringIfDifferent(HKEY root, LPCTSTR subKey, LPCTSTR name, LPCTSTR value)
+{
+    CRegKey key;
+    if (key.Create(root, subKey) != ERROR_SUCCESS) {
+        return;
+    }
+    TCHAR current[1024] = { 0 };
+    ULONG chars = _countof(current);
+    if (key.QueryStringValue(name, current, &chars) != ERROR_SUCCESS || lstrcmp(current, value) != 0) {
+        key.SetStringValue(name, value);
+    }
+}
+
+static bool UriHandlerIsFree(LPCTSTR protocol)
+{
+    CString subKey;
+    subKey.Format(_T("Software\\Classes\\%s\\shell\\open\\command"), protocol);
+    CRegKey key;
+    if (key.Open(HKEY_CURRENT_USER, subKey, KEY_READ) != ERROR_SUCCESS) {
+        return true;
+    }
+    TCHAR command[1024] = { 0 };
+    ULONG chars = _countof(command);
+    if (key.QueryStringValue(NULL, command, &chars) != ERROR_SUCCESS || !command[0]) {
+        return true;
+    }
+    CString exe = command;
+    if (exe.MakeLower().Find(_T("upphone.exe")) != -1) {
+        return true;
+    }
+    // the program of the command no longer exists. Only a full path counts: "rundll32.exe ..." or a path with
+    // variables (REG_EXPAND_SZ) is another program's handler
+    TCHAR expanded[1024] = { 0 };
+    if (!ExpandEnvironmentStrings(command, expanded, _countof(expanded))) {
+        return false;
+    }
+    LPWSTR* argv;
+    int argc;
+    argv = CommandLineToArgvW(expanded, &argc);
+    bool stale = argv && argc > 0 && !::PathIsRelative(argv[0]) && !::PathFileExists(argv[0]);
+    if (argv) {
+        LocalFree(argv);
+    }
+    return stale;
+}
+
+void msip_uri_handlers_set()
+{
+    CString command;
+    command.Format(_T("\"%s\" \"%%1\""), accountSettings.exeFile);
+    CString icon;
+    icon.Format(_T("\"%s\",0"), accountSettings.exeFile);
+    LPCTSTR progId = _T("Upphone.Url");
+    CString classKey;
+    classKey.Format(_T("Software\\Classes\\%s"), progId);
+    RegSetStringIfDifferent(HKEY_CURRENT_USER, classKey, NULL, _T(_GLOBAL_NAME_NICE));
+    RegSetStringIfDifferent(HKEY_CURRENT_USER, classKey + _T("\\DefaultIcon"), NULL, icon);
+    RegSetStringIfDifferent(HKEY_CURRENT_USER, classKey + _T("\\shell\\open\\command"), NULL, command);
+
+    CString capabilities;
+    capabilities.Format(_T("Software\\%s\\Capabilities"), _T(_GLOBAL_NAME_NICE));
+    RegSetStringIfDifferent(HKEY_CURRENT_USER, capabilities, _T("ApplicationName"), _T(_GLOBAL_NAME_NICE));
+    RegSetStringIfDifferent(HKEY_CURRENT_USER, capabilities, _T("ApplicationDescription"), _T("Softphone SIP da Upp Tecnologia"));
+    RegSetStringIfDifferent(HKEY_CURRENT_USER, _T("Software\\RegisteredApplications"), _T(_GLOBAL_NAME_NICE), capabilities);
+
+    LPCTSTR protocols[] = { _T("tel"), _T("sip"), _T("callto") };
+    for (LPCTSTR protocol : protocols) {
+        RegSetStringIfDifferent(HKEY_CURRENT_USER, capabilities + _T("\\URLAssociations"), protocol, progId);
+        if (UriHandlerIsFree(protocol)) {
+            CString protocolKey;
+            protocolKey.Format(_T("Software\\Classes\\%s"), protocol);
+            CString description;
+            description.Format(_T("URL:%s"), protocol);
+            RegSetStringIfDifferent(HKEY_CURRENT_USER, protocolKey, NULL, description);
+            RegSetStringIfDifferent(HKEY_CURRENT_USER, protocolKey, _T("URL Protocol"), _T(""));
+            RegSetStringIfDifferent(HKEY_CURRENT_USER, protocolKey + _T("\\DefaultIcon"), NULL, icon);
+            RegSetStringIfDifferent(HKEY_CURRENT_USER, protocolKey + _T("\\shell\\open\\command"), NULL, command);
+        }
+    }
+}
+
 CString GetAccountLabel(Account* acc, int i)
 {
     CString str;

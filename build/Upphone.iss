@@ -67,9 +67,39 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"; Tasks: desktopico
 Root: HKLM; Subkey: "Software\{#AppName}"; ValueType: string; ValueName: ""; ValueData: "{app}"; Flags: uninsdeletekey
 ; O app se registra para iniciar com o Windows; remove essa entrada ao desinstalar
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "{#AppName}"; Flags: uninsdeletevalue dontcreatekey
+; Links tel:, sip: e callto: (o app se registra ao abrir, msip_uri_handlers_set em global.cpp); removidos ao desinstalar.
+; As classes tel/sip/callto saem em [Code], so quando apontam para o Upphone.
+Root: HKCU; Subkey: "Software\Classes\Upphone.Url"; ValueType: none; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\{#AppName}\Capabilities"; ValueType: none; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\{#AppName}"; ValueType: none; Flags: uninsdeletekeyifempty dontcreatekey
+Root: HKCU; Subkey: "Software\RegisteredApplications"; ValueType: none; ValueName: "{#AppName}"; Flags: uninsdeletevalue dontcreatekey
 
 [Run]
 Filename: "{app}\{#AppExe}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
+[UninstallDelete]
+; sons padrao que o app grava a partir dos embutidos no .exe (EmbeddedSoundFile em mainDlg.cpp)
+Type: filesandordirs; Name: "{localappdata}\{#AppName}\sounds"
+
 [UninstallRun]
 Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM {#AppExe}"; Flags: runhidden; RunOnceId: "KillUpphone"
+
+[Code]
+// Remove os links tel:, sip: e callto: que apontam para o Upphone (os de outros programas ficam)
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  Protocols: array[0..2] of String;
+  Command: String;
+  I: Integer;
+begin
+  if CurUninstallStep = usPostUninstall then
+  begin
+    Protocols[0] := 'tel';
+    Protocols[1] := 'sip';
+    Protocols[2] := 'callto';
+    for I := 0 to 2 do
+      if RegQueryStringValue(HKCU, 'Software\Classes\' + Protocols[I] + '\shell\open\command', '', Command) and
+         (Pos('upphone.exe', Lowercase(Command)) > 0) then
+        RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\' + Protocols[I]);
+  end;
+end;

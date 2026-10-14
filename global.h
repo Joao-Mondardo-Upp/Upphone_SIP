@@ -422,4 +422,5 @@ void msip_call_recording_start(call_user_data* user_data, pjsua_call_info* call_
 void msip_call_recording_stop(call_user_data* user_data, int id = 0, bool force = false);
 CString msip_url_mask(CString url);
 void msip_startup_set(bool enable);
+void msip_uri_handlers_set(); // Upphone: tel:, sip: and callto: links open Upphone
 CString GetAccountLabel(Account* acc, int i);

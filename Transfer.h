@@ -22,6 +22,7 @@
 #include "resource.h"
 #include "const.h"
 #include "Contacts.h"
+#include "ButtonDialer.h"
 
 enum msip_action {
 	MSIP_ACTION_TRANSFER,
@@ -46,6 +47,8 @@ public:
 	void LoadFromContacts(Contact *selectedContact = NULL);
 protected:
 	CFont m_font;
+	CButtonDialer m_keys[12]; // Upphone: keypad drawn like the dialer keys
+	CFont m_fontKeys;
 
 	void ClearDropdown();
 	afx_msg void OnDestroy();

@@ -43,7 +43,8 @@
 #include <ws2tcpip.h>
 #include <Dbt.h>
 #include <Strsafe.h>
-#include <locale.h> 
+#include <locale.h>
+#include <vector>
 #include <Wtsapi32.h>
 #include "atlrx.h"
 
@@ -3040,7 +3041,7 @@ void CmainDlg::OnTimerCall()
                 }
             }
             if (holdFrom != -1) {
-                icon = IDI_HOLD;
+                icon = IDI_ON_HOLD; // Upphone: IDI_HOLD is a black glyph, invisible on the dark status bar
                 str.Format(_T("%s %s / %s"), Translate(_T("Hold")), MSIP::GetDuration(duration - holdFrom, true), MSIP::GetDuration(duration, true));
             }
             else {
@@ -3050,7 +3051,7 @@ void CmainDlg::OnTimerCall()
         else {
             str.Format(_T("%s (%d)"), Translate(_T("Connected")), duration);
         }
-        if (call_id != PJSUA_INVALID_ID && icon != IDI_HOLD) {
+        if (call_id != PJSUA_INVALID_ID && icon != IDI_ON_HOLD) {
             call_user_data* user_data;
             if (is_pjsua_running()) {
                 user_data = (call_user_data*)pjsua_call_get_user_data(call_id);
@@ -4457,12 +4458,46 @@ bool CmainDlg::GotoTab(int i) {
 void CmainDlg::ProcessCommand(CString str) {
 }
 
+#ifndef URL_UNESCAPE_AS_UTF8
+#define URL_UNESCAPE_AS_UTF8 0x00040000 // shlwapi.h, Windows 8 and later
+#endif
+// Upphone: number of a tel:/callto: link as web pages write it ("+55 (11) 98888-7777", "%2B5511...", ";ext=12"):
+// percent-decoded, without the parameters and without the visual separators of RFC 3966
+static CString CleanLinkNumber(CString number, bool phone)
+{
+    if (number.Find(_T('%')) != -1) {
+        LPTSTR buffer = number.GetBuffer();
+        UrlUnescape(buffer, NULL, NULL, URL_UNESCAPE_INPLACE | URL_UNESCAPE_AS_UTF8);
+        number.ReleaseBuffer();
+    }
+    if (phone) {
+        int end = number.FindOneOf(_T(";?"));
+        if (end != -1) {
+            number = number.Left(end);
+        }
+        number.Remove(_T(' '));
+        number.Remove(_T('-'));
+        number.Remove(_T('.'));
+        number.Remove(_T('('));
+        number.Remove(_T(')'));
+        number.Remove(_T('\x00A0'));
+    }
+    number.Trim();
+    return number;
+}
+
 void CmainDlg::DialNumberFromCommandLine(CString params) {
     pjsua_acc_info info;
+    bool linkPhone = false; // Upphone: tel: or callto: link
+    bool link = false;
     if (params.Mid(0, 4).CompareNoCase(_T("tel:")) == 0 || params.Mid(0, 4).CompareNoCase(_T("sip:")) == 0) {
+        linkPhone = params.Mid(0, 4).CompareNoCase(_T("tel:")) == 0;
+        link = true;
         params = params.Mid(4);
     }
     else if (params.Mid(0, 7).CompareNoCase(_T("callto:")) == 0) {
+        linkPhone = true;
+        link = true;
         params = params.Mid(7);
     }
     else if (params.Mid(0, 8).CompareNoCase(_T("dialpad:")) == 0) {
@@ -4475,6 +4510,12 @@ void CmainDlg::DialNumberFromCommandLine(CString params) {
         params = params.Mid(2);
         if (params.Right(1) == _T("/")) {
             params = params.Mid(0, params.GetLength() - 1);
+        }
+    }
+    if (link) {
+        params = CleanLinkNumber(params, linkPhone);
+        if (params.IsEmpty()) {
+            return;
         }
     }
     int pos = params.Find(_T("/account:"));
@@ -4829,6 +4870,72 @@ void CmainDlg::ShortcutsRemoveAll()
     shortcuts.RemoveAll();
 }
 
+// Upphone: the installer and the portable zip carry only Upphone.exe, so without the .wav files an incoming
+// call did not ring. The standard sounds are embedded (IDR_SOUND_*) and written to the "sounds" folder of the
+// local data folder (or %TEMP%), rewritten when the embedded version changes. A subfolder, so that in the
+// portable version they are not taken for custom sounds next to Upphone.exe. Returns the file to play, or an
+// empty string when the sound has no embedded version.
+static CString EmbeddedSoundFile(const CString& name)
+{
+    struct { LPCTSTR name; int id; } sounds[] = {
+        { _T("ringtone.wav"), IDR_SOUND_RINGTONE },
+        { _T("ringing.wav"), IDR_SOUND_RINGING },
+        { _T("ringing2.wav"), IDR_SOUND_RINGING2 },
+        { _T("hangup.wav"), IDR_SOUND_HANGUP },
+    };
+    int id = 0;
+    for (auto& sound : sounds) {
+        if (name.CompareNoCase(sound.name) == 0) {
+            id = sound.id;
+        }
+    }
+    HRSRC hRes = id ? FindResource(NULL, MAKEINTRESOURCE(id), RT_RCDATA) : NULL;
+    HGLOBAL hData = hRes ? LoadResource(NULL, hRes) : NULL;
+    const void* data = hData ? LockResource(hData) : NULL;
+    DWORD size = hRes ? SizeofResource(NULL, hRes) : 0;
+    if (!data || !size) {
+        return _T("");
+    }
+    TCHAR temp[MAX_PATH] = { 0 };
+    GetTempPath(MAX_PATH, temp);
+    CString folders[] = { accountSettings.pathLocal, temp };
+    for (const CString& folder : folders) {
+        if (folder.IsEmpty()) {
+            continue;
+        }
+        CString file = folder;
+        if (file.Right(1) != _T("\\")) {
+            file += _T("\\");
+        }
+        file += _T("sounds");
+        CreateDirectory(file, NULL);
+        file += _T("\\") + name;
+        HANDLE h = CreateFile(file, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (h != INVALID_HANDLE_VALUE) {
+            bool same = false;
+            if (GetFileSize(h, NULL) == size) {
+                std::vector<char> current(size);
+                DWORD read = 0;
+                same = ReadFile(h, current.data(), size, &read, NULL) && read == size && memcmp(current.data(), data, size) == 0;
+            }
+            CloseHandle(h);
+            if (same) {
+                return file;
+            }
+        }
+        h = CreateFile(file, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (h != INVALID_HANDLE_VALUE) {
+            DWORD written = 0;
+            BOOL ok = WriteFile(h, data, size, &written, NULL) && written == size;
+            CloseHandle(h);
+            if (ok) {
+                return file;
+            }
+        }
+    }
+    return _T("");
+}
+
 LRESULT CmainDlg::onPlayerPlay(WPARAM wParam, LPARAM lParam)
 {
     CString filename;
@@ -4884,7 +4991,15 @@ LRESULT CmainDlg::onPlayerPlay(WPARAM wParam, LPARAM lParam)
         }
     }
     if (filename.Find('\\') == -1 && filename.Find('/') == -1) {
-        filename = accountSettings.pathExe + _T("\\") + filename;
+        CString name = filename;
+        filename = accountSettings.pathExe + _T("\\") + name;
+        // Upphone: a .wav next to Upphone.exe still wins (custom sounds); otherwise the embedded one
+        if (!::PathFileExists(filename)) {
+            CString embedded = EmbeddedSoundFile(name);
+            if (!embedded.IsEmpty()) {
+                filename = embedded;
+            }
+        }
     }
     PlayerPlay(filename, noLoop, inCall);
     return 0;
@@ -5134,9 +5249,13 @@ void CmainDlg::SetPaneText2(CString str)
         int width;
         CDC* pDC = m_bar.GetDC();
         if (pDC && pDC->m_hAttribDC) {
+            // Upphone: measured with the status bar font, plus the padding StatusBar::OnPaint draws on each side
+            // (4 px scaled). The old estimate (default DC font x 0.85) cut the extension ("50...") at 150%.
+            CFont* oldFont = pDC->SelectObject(m_bar.GetFont());
             CSize size = pDC->GetTextExtent(str);
+            pDC->SelectObject(oldFont);
             m_bar.ReleaseDC(pDC);
-            width = MulDiv(size.cx * 0.85, dpiY, 96);
+            width = size.cx + MulDiv(2 * 4 + 4, dpiY, 96);
         }
         else {
             width = MulDiv(7 * str.GetLength(), dpiY, 96);

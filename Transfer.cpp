@@ -55,18 +55,16 @@ BOOL Transfer::OnInitDialog()
 	CComboBox *combobox = (CComboBox*)GetDlgItem(IDC_NUMBER);
 	combobox->SetFont(&m_font);
 
-    GetDlgItem(IDC_KEY_1)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_2)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_3)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_4)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_5)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_6)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_7)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_8)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_9)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_0)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_STAR)->SetFont(&m_font);
-	GetDlgItem(IDC_KEY_GRATE)->SetFont(&m_font);
+	// Upphone: the keypad is drawn like the dialer keys; only the digit, the keys are too small for the letters
+	lf.lfHeight = -MulDiv(16, dpiY, 96); // digits as big as on the dialer keys
+	m_fontKeys.CreateFontIndirect(&lf);
+	static const int keyIds[] = { IDC_KEY_1, IDC_KEY_2, IDC_KEY_3, IDC_KEY_4, IDC_KEY_5, IDC_KEY_6,
+		IDC_KEY_7, IDC_KEY_8, IDC_KEY_9, IDC_KEY_0, IDC_KEY_STAR, IDC_KEY_GRATE };
+	for (int i = 0; i < _countof(keyIds); i++) {
+		m_keys[i].SubclassDlgItem(keyIds[i], this);
+		m_keys[i].forceNumeric = true;
+		m_keys[i].SetFont(&m_fontKeys);
+	}
 
 	return TRUE;
 }
