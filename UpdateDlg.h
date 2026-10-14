@@ -1,0 +1,52 @@
+/*
+ * Copyright (C) 2011-2026 MicroSIP (http://www.microsip.org)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#pragma once
+
+#include "resource.h"
+#include "ThemeDialog.h"
+#include "ButtonEx.h"
+
+// Upphone: "Update Available" notice in the app theme, in place of the Windows message box. Modeless, so the
+// main window stays usable (an incoming call can be handled while it is open); it deletes itself when closed.
+class UpdateDlg : public CThemeDialog
+{
+public:
+	enum { IDD = IDD_UPDATE };
+	// opens the notice, or brings the one already open to the front
+	static void Show(CWnd* pParent, CString version, CString notes);
+
+protected:
+	UpdateDlg(CString version, CString notes);
+	static UpdateDlg* s_open;
+	CString m_version;
+	CString m_notes;
+	CFont m_fontTitle;
+	CFont m_fontQuestion;
+	HICON m_hIcon = NULL;
+	CButtonEx m_ButtonYes;
+	CButtonEx m_ButtonNo;
+
+	virtual void DoDataExchange(CDataExchange* pDX);
+	virtual BOOL OnInitDialog();
+	virtual void PostNcDestroy();
+	virtual void OnOK();
+	virtual void OnCancel();
+	afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
+	DECLARE_MESSAGE_MAP()
+};

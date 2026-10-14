@@ -148,6 +148,7 @@ BEGIN_MESSAGE_MAP(Calls, CBaseDialog)
     ON_COMMAND(ID_EXPORT, OnMenuExport)
     ON_COMMAND(ID_IMPORT, OnMenuImport)
     ON_NOTIFY(NM_DBLCLK, IDC_CALLS, &Calls::OnNMDblclkCalls)
+    ON_NOTIFY(NM_CUSTOMDRAW, IDC_CALLS, &Calls::OnCustomDrawCalls)
     ON_MESSAGE(WM_CONTEXTMENU, OnContextMenu)
 #ifdef _GLOBAL_VIDEO
     ON_COMMAND(ID_VIDEOCALL, OnMenuCallVideo)
@@ -181,6 +182,23 @@ BOOL Calls::PreTranslateMessage(MSG* pMsg)
     }
     else {
         return TRUE;
+    }
+}
+
+// Upphone: missed calls in the danger color, so they stand out in the log (selected rows keep the selection colors)
+void Calls::OnCustomDrawCalls(NMHDR* pNMHDR, LRESULT* pResult)
+{
+    LPNMLVCUSTOMDRAW cd = (LPNMLVCUSTOMDRAW)pNMHDR;
+    *pResult = CDRF_DODEFAULT;
+    if (cd->nmcd.dwDrawStage == CDDS_PREPAINT) {
+        *pResult = CDRF_NOTIFYITEMDRAW;
+    }
+    else if (cd->nmcd.dwDrawStage == CDDS_ITEMPREPAINT) {
+        Call* pCall = (Call*)cd->nmcd.lItemlParam;
+        if (pCall && pCall->type == MSIP_CALL_TYPE_MISSED
+            && !(m_list.GetItemState((int)cd->nmcd.dwItemSpec, LVIS_SELECTED) & LVIS_SELECTED)) {
+            cd->clrText = _GLOBAL_THEME_DANGER;
+        }
     }
 }
 
@@ -358,6 +376,16 @@ LRESULT Calls::OnContextMenu(WPARAM wParam, LPARAM lParam)
             if (tracker->GetMenuItemCount() == 3) {
                 tracker->RemoveMenu(0, MF_BYPOSITION);
             }
+            // Upphone: icons beside the items (Windows icon font glyphs)
+            ThemeMenuIcons icons;
+            icons.Set(tracker->m_hMenu, ID_CALL, 0xE717, _GLOBAL_BRAND_ACCENT); // Phone
+            icons.Set(tracker->m_hMenu, ID_CALL_PICKUP, 0xE77E, _GLOBAL_THEME_TEXT2); // IncomingCall
+            icons.Set(tracker->m_hMenu, ID_ADD, 0xE8FA, _GLOBAL_THEME_TEXT2); // AddFriend
+            icons.Set(tracker->m_hMenu, ID_EDIT, 0xE70F, _GLOBAL_THEME_TEXT2); // Edit
+            icons.Set(tracker->m_hMenu, ID_COPY, 0xE8C8, _GLOBAL_THEME_TEXT2); // Copy
+            icons.Set(tracker->m_hMenu, ID_DELETE, 0xE74D, _GLOBAL_THEME_DANGER); // Delete
+            icons.Set(tracker->m_hMenu, ID_EXPORT, 0xE898, _GLOBAL_THEME_TEXT2); // Upload
+            icons.Set(tracker->m_hMenu, ID_IMPORT, 0xE896, _GLOBAL_THEME_TEXT2); // Download
             tracker->TrackPopupMenu(0, x, y, this);
         }
         return TRUE;

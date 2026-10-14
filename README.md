@@ -58,7 +58,7 @@ C:\src\upphone\microsip\build\build.ps1 -Installer
 
 O `setup.ps1` cria `C:\src\upphone` com o pjproject no commit fixado e coloca este repositório em `C:\src\upphone\microsip`, no mesmo commit do script. Use um caminho curto: o build do pjproject passa do limite de 260 caracteres do Windows em pastas muito longas.
 
-Para compilar uma versão publicada, faça `git checkout v1.3.0` (ou outra tag) no clone antes de rodar o `setup.ps1`.
+Para compilar uma versão publicada, faça `git checkout v1.3.1` (ou outra tag) no clone antes de rodar o `setup.ps1`.
 
 O `build.ps1`:
 

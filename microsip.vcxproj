@@ -433,6 +433,7 @@
     </ClCompile>
     <ClCompile Include="ThemeDialog.cpp" />
     <ClCompile Include="Transfer.cpp" />
+    <ClCompile Include="UpdateDlg.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="AAOptionsDlg.h" />
@@ -503,6 +504,7 @@
     <ClInclude Include="targetver.h" />
     <ClInclude Include="ThemeDialog.h" />
     <ClInclude Include="Transfer.h" />
+    <ClInclude Include="UpdateDlg.h" />
     <ClInclude Include="Utils\StringConverter.h" />
   </ItemGroup>
   <ItemGroup>

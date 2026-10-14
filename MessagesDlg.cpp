@@ -569,14 +569,14 @@ void MessagesDlg::OnChangeTab(pjsua_call_info* p_call_info, call_user_data* user
                         || p_call_info->state == PJSIP_INV_STATE_CONNECTING)
                     ))
             ) {
-            if (messagesContact->name == messagesContact->numberShort) {
-                mainDlg->pageDialer->SetNumber(messagesContact->numberShort, 1);
-            }
-            else {
-                CString str;
+            // Upphone: the call card shows the name and the number apart (set before SetNumber, which repaints it)
+            CString str = messagesContact->numberShort;
+            if (messagesContact->name != messagesContact->numberShort) {
                 str.Format(_T("%s – %s"), messagesContact->name, messagesContact->numberShort);
-                mainDlg->pageDialer->SetNumber(str, 1);
             }
+            mainDlg->pageDialer->SetCallCard(messagesContact->name, messagesContact->numberShort, str,
+                p_call_info->state == PJSIP_INV_STATE_CONFIRMED ? CALL_CARD_ACTIVE : CALL_CARD_CALLING);
+            mainDlg->pageDialer->SetNumber(str, 1);
         }
     }
     else {

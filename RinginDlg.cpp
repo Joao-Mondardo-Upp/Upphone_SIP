@@ -99,10 +99,14 @@ BOOL RinginDlg::OnInitDialog() {
     if (accountSettings.noIgnoreCall) {
         GetDlgItem(IDC_IGNORE)->ShowWindow(SW_HIDE);
     }
-    lf.lfHeight = -MulDiv(20, dpiY, 96);
+    lf.lfHeight = -MulDiv(22, dpiY, 96); // Upphone: 22 (was 20), the name is the first thing to read
     lf.lfWeight = FW_BOLD;
     m_font.CreateFontIndirect(&lf);
     GetDlgItem(IDC_CALLER_NAME)->SetFont(&m_font);
+    lf.lfHeight = -MulDiv(14, dpiY, 96);
+    lf.lfWeight = FW_SEMIBOLD;
+    m_font_number.CreateFontIndirect(&lf);
+    GetDlgItem(IDC_CALLER_NUMBER)->SetFont(&m_font_number);
 
     GetDlgItem(IDC_CALLER_NAME)->ModifyStyleEx(WS_EX_CLIENTEDGE, 0, SWP_NOSIZE | SWP_FRAMECHANGED);
     GetDlgItem(IDC_CALLER_ADDR)->ModifyStyleEx(WS_EX_CLIENTEDGE, 0, SWP_NOSIZE | SWP_FRAMECHANGED);
@@ -236,7 +240,23 @@ BEGIN_MESSAGE_MAP(RinginDlg, CBaseDialog)
     ON_BN_CLICKED(IDC_DECLINE, &RinginDlg::OnBnClickedDecline)
     ON_BN_CLICKED(IDC_VIDEO, &RinginDlg::OnBnClickedVideo)
     ON_BN_CLICKED(IDC_TRANSFER, OnBnClickedTransfer)
+    ON_WM_CTLCOLOR()
 END_MESSAGE_MAP()
+
+// Upphone: caller number in the accent color, SIP details in the secondary text color
+HBRUSH RinginDlg::OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor)
+{
+    HBRUSH br = CBaseDialog::OnCtlColor(pDC, pWnd, nCtlColor);
+    if (m_bAllowDark && pWnd) {
+        if (pWnd->GetDlgCtrlID() == IDC_CALLER_NUMBER) {
+            pDC->SetTextColor(_GLOBAL_BRAND_ACCENT);
+        }
+        else if (pWnd->GetDlgCtrlID() == IDC_CALLER_ADDR) {
+            pDC->SetTextColor(_GLOBAL_THEME_TEXT2);
+        }
+    }
+    return br;
+}
 
 void RinginDlg::OnClose()
 {

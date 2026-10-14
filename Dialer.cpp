@@ -593,6 +593,17 @@ BOOL Dialer::OnInitDialog()
     CComboBox* combobox = (CComboBox*)GetDlgItem(IDC_NUMBER);
     combobox->SetWindowPos(NULL, 0, 0, combobox->GetDroppedWidth(), MulDiv(400, dpiY, 96), SWP_NOZORDER | SWP_NOMOVE);
     combobox->SetFont(&m_font_number);
+    // Upphone: call card over the number field
+    lf.lfHeight = -MulDiv(13, dpiY, 96);
+    lf.lfWeight = FW_BOLD;
+    m_font_card_title.CreateFontIndirect(&lf);
+    lf.lfHeight = -MulDiv(11, dpiY, 96);
+    lf.lfWeight = FW_NORMAL;
+    m_font_card_text.CreateFontIndirect(&lf);
+    m_callCard.Create(_T(""), WS_CHILD | SS_OWNERDRAW | SS_NOTIFY, CRect(0, 0, 0, 0), this, IDC_DIALER_CALL_CARD);
+    m_callCard.m_fontTitle = &m_font_card_title;
+    m_callCard.m_fontText = &m_font_card_text;
+    m_callCard.m_numberField = combobox->m_hWnd;
     GetDlgItem(IDC_KEY_1)->SetFont(&m_font);
     GetDlgItem(IDC_KEY_2)->SetFont(&m_font);
     GetDlgItem(IDC_KEY_3)->SetFont(&m_font);
@@ -679,11 +690,132 @@ void Dialer::PostNcDestroy()
     CBaseDialog::PostNcDestroy();
 }
 
+void Dialer::OnSize(UINT nType, int cx, int cy)
+{
+    CBaseDialog::OnSize(nType, cx, cy);
+    if (m_callCard.m_hWnd && m_callCard.IsWindowVisible()) {
+        ShowCallCard(true);
+    }
+}
+
+void CCallCard::DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct)
+{
+    CDC* dc = CDC::FromHandle(lpDrawItemStruct->hDC);
+    CRect rc = lpDrawItemStruct->rcItem;
+    int dpi = dc->GetDeviceCaps(LOGPIXELSY);
+    dc->FillSolidRect(rc, _GLOBAL_THEME_BG);
+    CBrush face(_GLOBAL_THEME_SURFACE);
+    CPen border(PS_SOLID, 1, _GLOBAL_THEME_BORDER);
+    CBrush* oldBrush = dc->SelectObject(&face);
+    CPen* oldPen = dc->SelectObject(&border);
+    int radius = MulDiv(6, dpi, 96);
+    dc->RoundRect(rc, CPoint(radius, radius));
+    dc->SelectObject(oldBrush);
+    dc->SelectObject(oldPen);
+    int bar = MulDiv(4, dpi, 96);
+    COLORREF barColor = m_state == CALL_CARD_ACTIVE ? _GLOBAL_THEME_SUCCESS : (m_state == CALL_CARD_HOLD ? _GLOBAL_THEME_WARNING : _GLOBAL_THEME_TEXT2);
+    dc->FillSolidRect(CRect(rc.left + 1, rc.top + 1 + radius / 2, rc.left + 1 + bar, rc.bottom - 1 - radius / 2), barColor);
+
+    // who is on the line, then the number with the digits typed during the call and the state
+    CString field;
+    if (m_numberField) {
+        CWnd::FromHandle(m_numberField)->GetWindowText(field);
+    }
+    CString digits;
+    if (!m_prefix.IsEmpty() && field.Find(m_prefix) == 0) {
+        digits = field.Mid(m_prefix.GetLength());
+    }
+    digits.Trim();
+    bool hasName = !m_name.IsEmpty() && m_name != m_number;
+    CString title = m_prefix.IsEmpty() ? field : (hasName ? m_name : m_number);
+    title.Trim();
+    CString text = hasName ? m_number : _T("");
+    if (!digits.IsEmpty()) {
+        text += (text.IsEmpty() ? _T("") : _T(" ")) + digits;
+    }
+    CString state = Translate(m_state == CALL_CARD_ACTIVE ? _T("Call is Active") : (m_state == CALL_CARD_HOLD ? _T("Call on Hold") : _T("Calling")));
+    text += (text.IsEmpty() ? _T("") : _T("  \u00B7  ")) + state;
+
+    int pad = MulDiv(8, dpi, 96);
+    CRect textRect(rc.left + 1 + bar + pad, rc.top, rc.right - pad, rc.bottom);
+    CFont* oldFont = dc->SelectObject(m_fontTitle);
+    int titleHeight = dc->GetTextExtent(_T("Ag")).cy;
+    dc->SelectObject(m_fontText);
+    int textHeight = dc->GetTextExtent(_T("Ag")).cy;
+    int top = rc.top + (rc.Height() - titleHeight - textHeight) / 2;
+    dc->SetBkMode(TRANSPARENT);
+    dc->SelectObject(m_fontTitle);
+    dc->SetTextColor(_GLOBAL_THEME_TEXT);
+    CRect line(textRect.left, top, textRect.right, top + titleHeight);
+    dc->DrawText(title, line, DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
+    dc->SelectObject(m_fontText);
+    dc->SetTextColor(m_state == CALL_CARD_HOLD ? _GLOBAL_THEME_WARNING : _GLOBAL_THEME_TEXT2);
+    line.SetRect(textRect.left, top + titleHeight, textRect.right, top + titleHeight + textHeight);
+    dc->DrawText(text, line, DT_SINGLELINE | DT_LEFT | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
+    dc->SelectObject(oldFont);
+}
+
+// Upphone: the card takes the place of the number field, from its top down to the keypad
+void Dialer::ShowCallCard(bool show)
+{
+    CWnd* combobox = GetDlgItem(IDC_NUMBER);
+    if (show) {
+        CRect rect;
+        combobox->GetWindowRect(&rect);
+        ScreenToClient(&rect);
+        CRect keys;
+        GetDlgItem(IDC_KEY_1)->GetWindowRect(&keys);
+        ScreenToClient(&keys);
+        if (keys.top - MulDiv(2, dpiY, 96) > rect.bottom) {
+            rect.bottom = keys.top - MulDiv(2, dpiY, 96);
+        }
+        m_callCard.SetWindowPos(&CWnd::wndTop, rect.left, rect.top, rect.Width(), rect.Height(), SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        m_callCard.Invalidate();
+        if (combobox->IsWindowVisible()) {
+            CWnd* focus = GetFocus();
+            if (focus && (focus == combobox || combobox->IsChild(focus))) {
+                GotoDlgCtrl(&m_ButtonEnd);
+            }
+            combobox->ShowWindow(SW_HIDE);
+        }
+    }
+    else {
+        m_callCard.ShowWindow(SW_HIDE);
+        m_callCard.m_state = CALL_CARD_HIDDEN;
+        m_callCard.m_name.Empty();
+        m_callCard.m_number.Empty();
+        m_callCard.m_prefix.Empty();
+        combobox->ShowWindow(SW_SHOW);
+    }
+}
+
+void Dialer::SetCallCard(CString name, CString number, CString prefix, int state)
+{
+    m_callCard.m_name = name;
+    m_callCard.m_number = number;
+    m_callCard.m_prefix = prefix;
+    if (m_callCard.m_state == CALL_CARD_HIDDEN || state != CALL_CARD_CALLING) {
+        m_callCard.m_state = state;
+    }
+    if (m_callCard.IsWindowVisible()) {
+        m_callCard.Invalidate();
+    }
+}
+
+void Dialer::SetCallCardState(int state)
+{
+    if (m_callCard.m_state != state && m_callCard.IsWindowVisible()) {
+        m_callCard.m_state = state;
+        m_callCard.Invalidate();
+    }
+}
+
 BEGIN_MESSAGE_MAP(Dialer, CBaseDialog)
     ON_BN_CLICKED(IDOK, OnBnClickedOk)
     ON_BN_CLICKED(IDCANCEL, OnBnClickedCancel)
     ON_WM_SETCURSOR()
     ON_WM_CTLCOLOR()
+    ON_WM_SIZE()
     ON_BN_CLICKED(IDC_DIALER_DND, &Dialer::OnBnClickedDND)
     ON_BN_CLICKED(IDC_DIALER_FWD, &Dialer::OnBnClickedFWD)
     ON_BN_CLICKED(IDC_DIALER_AA, &Dialer::OnBnClickedAA)
@@ -1096,6 +1228,9 @@ void Dialer::Input(CString digits, BOOL disableDTMF)
         edit->SetSel(nLength, nLength);
         edit->ReplaceSel(digits);
     }
+    if (m_callCard.IsWindowVisible()) {
+        m_callCard.Invalidate(); // Upphone: digits typed during the call
+    }
 }
 
 void Dialer::DialedClear()
@@ -1168,6 +1303,9 @@ void Dialer::SetNumber(CString number, int callsCount)
         }
         combobox->SetWindowText(number);
     }
+    if (m_callCard.IsWindowVisible()) {
+        m_callCard.Invalidate(); // Upphone
+    }
     UpdateCallButton(0, callsCount);
     delayedDTMF = false;
 }
@@ -1203,8 +1341,17 @@ void Dialer::UpdateCallButton(BOOL forse, int callsCount)
                 m_ButtonEnd.ShowWindow(SW_SHOW);
                 GotoDlgCtrl(GetDlgItem(IDC_END));
             }
+            if (!m_callCard.IsWindowVisible()) {
+                if (m_callCard.m_state == CALL_CARD_HIDDEN) {
+                    m_callCard.m_state = CALL_CARD_CALLING;
+                }
+                ShowCallCard(true);
+            }
         }
         else {
+            if (m_callCard.IsWindowVisible()) {
+                ShowCallCard(false);
+            }
             if (isEndVisisble) {
                 GetDlgItem(IDC_HOLD)->ShowWindow(SW_HIDE);
                 GetDlgItem(IDC_TRANSFER)->ShowWindow(SW_HIDE);

@@ -131,6 +131,17 @@
 #define IDR_SOUND_RINGING2 331
 #define IDR_SOUND_HANGUP 332
 #define IDC_UPPHONE_LOGO 1990
+// Upphone: 1.3.1 visuals (incoming call number, call card, transfer mode, update dialog)
+#define IDD_UPDATE 264
+#define IDC_CALLER_NUMBER 1207
+#define IDC_DIALER_CALL_CARD 1208
+#define IDC_TRANSFER_MODE_BLIND 1209
+#define IDC_TRANSFER_MODE_ATTENDED 1210
+#define IDC_UPDATE_TITLE 1211
+#define IDC_UPDATE_TEXT 1212
+#define IDC_UPDATE_NOTES 1213
+#define IDC_UPDATE_QUESTION 1214
+#define IDC_UPDATE_ICON 1215
 
 #define IDR_MENU_CONTACT	200
 #define IDR_MENU_MESSAGES	201
@@ -523,9 +534,9 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        264
+#define _APS_NEXT_RESOURCE_VALUE        265
 #define _APS_NEXT_COMMAND_VALUE         32824
-#define _APS_NEXT_CONTROL_VALUE         1207
+#define _APS_NEXT_CONTROL_VALUE         1216
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

@@ -206,6 +206,8 @@ Nome de Exibição
 Lembrar Detalhes
 [No]
 Não
+[Yes]
+Sim
 [All Calls]
 Todas as chamadas
 [SIP Header]
@@ -336,6 +338,10 @@ Portas RTP
 Importar
 [Blind Transfer]
 Transferência Cega
+[Blind]
+Cega
+[Attended]
+Assistida
 [Redial]
 Rediscar
 [Backspace]
