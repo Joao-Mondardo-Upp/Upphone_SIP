@@ -1,16 +1,16 @@
 # Upphone SIP: histórico e passagem do projeto
 
-Documento para continuar o trabalho em outra máquina. Resume o que foi feito no desenvolvimento das versões 1.0.0 a 1.2.0 (outubro de 2026), por que cada decisão foi tomada e o que está pendente.
+Documento para continuar o trabalho em outra máquina. Resume o que foi feito no desenvolvimento das versões 1.0.0 a 1.3.0 (outubro de 2026), por que cada decisão foi tomada e o que está pendente.
 
 - Repositório: https://github.com/Joao-Mondardo-Upp/Upphone_SIP (público)
-- Releases publicadas: [v1.2.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.2.0) (atual), [v1.1.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.1.0) e [v1.0.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.0.0)
+- Releases publicadas: [v1.3.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.3.0) (atual), [v1.2.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.2.0), [v1.1.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.1.0) e [v1.0.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.0.0)
 - Como montar o ambiente e compilar: [README.md](../README.md)
 
 ---
 
 ## 1. Estado atual
 
-**Upphone SIP 1.2.0 está publicado**, com instaladores e versões portáteis de 32 e 64 bits, compilados a partir da tag `v1.2.0` numa pasta limpa, com `build/setup.ps1` e `build/build.ps1 -Installer`. O que mudou desde a 1.0.0 está nos itens 27 a 30 da seção 3 e em `build/notas/`. A partir da 1.2.0 o app avisa sozinho quando sai uma versão nova (item 30): nas próximas releases, a seção "## O que mudou" das notas é o texto que os clientes veem no aviso.
+**Upphone SIP 1.3.0 está publicado**, com instaladores e versões portáteis de 32 e 64 bits, compilados a partir da tag `v1.3.0` numa pasta limpa, com `build/setup.ps1` e `build/build.ps1 -Installer`. O que mudou desde a 1.0.0 está nos itens 27 a 31 da seção 3 e em `build/notas/`. A partir da 1.2.0 o app avisa sozinho quando sai uma versão nova (item 30): nas próximas releases, a seção "## O que mudou" das notas é o texto que os clientes veem no aviso.
 
 | Item | Situação |
 |---|---|
@@ -127,6 +127,15 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
     - A data da última consulta (`checkUpdatesTime`) passou a ser gravada: o `GlobalSave` nunca era chamado.
     - Para o aviso funcionar, a seção "## O que mudou" das notas (`build/notas/`) deve ter os itens em linhas começando com "- ".
     - **Corrigido junto (defeito herdado do MicroSIP):** toda execução do `Upphone.exe` abre o `.ini` com acesso exclusivo. Se o Upphone já aberto estivesse gravando o `.ini` naquele instante, uma segunda execução (`/exit`, link `tel:`, clique no atalho) mostrava "Failed to open file for writing" e ficava parada nessa mensagem. Agora ela tenta de novo por até 2 segundos, e um `.ini` existente ocupado não é mais erro (`AccountSettings::Init`). Achado nos testes: a gravação da data da consulta por volta de 5 s após abrir deixava essa janela de risco maior.
+31. **Sons, links tel:/sip: e detalhes visuais da chamada** (versão 1.3.0).
+    - **Espera, Mudo e Transferir** (botões de ícone) desenhados no tema, como as teclas do discador: laranja quando ligados ou pressionados (`CThemeDialog::OnNotify`, `NM_CUSTOMDRAW`). Os ícones antigos de 16 cores (Espera, Transferir) eram pretos e sumiam no tema escuro: são desenhados na cor do texto; os de 32 bits (Mudo) como estão.
+    - **Teclado do Transferir** com as teclas do discador (`CButtonDialer`, só o número).
+    - **Barra de status:** a Espera usa o ícone azul `IDI_ON_HOLD` (o `IDI_HOLD` era preto e sumia no tema escuro).
+    - **Traduções** "Call on Local Hold", "Call on Remote Hold", "Call on Hold" e "Call is Active": o langpack tinha só as versões em minúsculas e a busca diferencia maiúsculas.
+    - **Ligar ao clicar em links `tel:`, `sip:` e `callto:`.** Ao abrir, o Upphone se registra para o usuário (HKCU) como aplicativo desses protocolos (`msip_uri_handlers_set` em `global.cpp`): aparece em Configurações > Aplicativos padrão e assume as classes livres, de programa que não existe mais ou já do Upphone; a de outro programa registrado pelo usuário fica como está, e a escolha feita nos Aplicativos padrão do Windows prevalece. Só conta como programa que não existe mais um caminho completo que não existe: um comando sem caminho (`rundll32.exe ...`) ou com variáveis (`%ProgramFiles%\...`) é de outro programa (achado na validação da 1.3.0 e testado: antes da correção o Upphone tomava esses links). O número do link é limpo antes de ligar (`CleanLinkNumber`: `%2B55`, espaços, traços, pontos, parênteses e `;ext=`). Com o app aberto, o clique vai para ele (`WM_COPYDATA`) e a ligação começa; fechado, ele abre e liga depois de registrar. O desinstalador remove esses registros (os protocolos só se apontarem para o Upphone). No Windows 11, quando outro programa também atende o protocolo (por exemplo o Skype for Business), o primeiro clique mostra "Selecionar um aplicativo": escolher o Upphone e marcar para usar sempre. Não há como pular essa pergunta, a escolha do usuário é protegida pelo Windows.
+    - **Escala de 150% testada** (monitor principal a 150% e a opção do Windows "corrigir aplicativos borrados" ligada, para o app receber o DPI novo sem sair da conta): discador, Registros, Contatos, colunas (mínimos de 120/105 px), menus, atalhos, chamada, Espera, Mudo e Transferir corretos. Corrigido: o ramal na barra de status saía cortado ("50..."), porque a largura era estimada com a fonte padrão x 0,85 e sem o espaçamento da barra (`SetPaneText2`).
+    - **Sons (defeito desde a 1.0.0): a chamada recebida não tocava.** O app toca `ringtone.wav` (chamada recebida), `ringing.wav` (chamando), `ringing2.wav` (bipe de uma segunda chamada durante outra e do atendimento automático, com `localDTMF`) e `hangup.wav` (fim de chamada, com `localDTMF`) ao lado do `.exe`, mas o instalador e o portátil só levavam o `Upphone.exe`, e o app não tinha som de reserva. Agora os sons ficam embutidos no `.exe` (`IDR_SOUND_*` em `res/main.rc2`) e são gravados na subpasta `sounds` da pasta de dados local (instalado: `%LOCALAPPDATA%\Upphone SIP\sounds`; portátil: ao lado do `.exe`), regravados quando o embutido muda (`EmbeddedSoundFile` em `mainDlg.cpp`). Um `.wav` com o mesmo nome ao lado do `Upphone.exe` continua valendo como som personalizado. Os sons são próprios, gerados por `build/gerar_sons.py` (o toque é um "trim-trim"; chamando e bipes em 425 Hz, o padrão brasileiro), para não depender dos arquivos do MicroSIP, que não têm licença explícita. O desinstalador apaga a pasta `sounds`. Testado com dois apps e o PABX de teste, medindo o pico de áudio de cada processo no medidor do Windows (0 a 1). Na 1.2.0 tudo dá 0. No build novo, x64 e Win32, os picos foram: toque da chamada recebida 0,79; chamando 0,44; silêncio na chamada atendida; bipe de fim 0,52. Também foi confirmado que um `hangup.wav` próprio ao lado do `.exe` substitui o embutido e que um `ringtone.wav` corrompido na pasta `sounds` é regravado.
+    - Testado com um "PABX de teste" local que atende, coloca em espera e registra o número discado: `tel:+55%20(11)%203333-4444` chegou como `sip:+551133334444@...`; `sip:` e `callto:` (com o app fechado: abre, registra e liga) também.
 
 ---
 
@@ -158,12 +167,12 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
 | `Theme.h/.cpp` | Paleta claro/escuro, leitura do modo do Windows, `UPPHONE_THEME`, coluna ordenada das listas |
 | `define.h` | `_GLOBAL_BRAND_ACCENT`, macros `_GLOBAL_THEME_*`, links upphone.com.br, nome "Upphone SIP" |
 | `const.h` | Versão, timestamp, empresa, vídeo desligado |
-| `ThemeDialog.h/.cpp` | Cores dos controles (`OnCtlColor`), borda dos campos e do chat, cabeçalho e seta de ordenação das listas, troca de tema ao vivo |
+| `ThemeDialog.h/.cpp` | Cores dos controles (`OnCtlColor`), borda dos campos e do chat, cabeçalho e seta de ordenação das listas, botões de ícone (Espera, Mudo, Transferir), troca de tema ao vivo |
 | `ClosableTabCtrl.h/.cpp` | Abas da janela de mensagens desenhadas no tema, botão de fechar e setas de rolagem |
 | `CListCtrl_Sortable.h/.cpp` | Colunas ajustadas à largura da lista, seta de ordenação via `ThemeSetListSort` |
 | `RinginDlg.h/.cpp` | Cores dos botões Atender e Recusar |
 | `DarkTabCtrl.h/.cpp` | Abas desenhadas (`CDarkTabCtrl`) e botão de menu ▼ (`CDarkArrowButton`) |
-| `ButtonDialer.cpp` | Teclas do discador |
+| `ButtonDialer.cpp` | Teclas do discador (também no teclado do `Transfer.cpp`) |
 | `ButtonBottom.*`, `ButtonEx.*` | Botões DND/AA e Chamar |
 | `StatusBar.*` | Barra de status desenhada |
 | `LevelsSliderCtrl.cpp` | Sliders de volume |
@@ -171,12 +180,12 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
 | `Calls.cpp`, `Contacts.cpp` | Lupa, fundo dos ícones, larguras mínimas das colunas |
 | `Dialer.cpp` | Sem CONF/REC, cores do botão Chamar, sliders |
 | `MessagesDlg.cpp` | Cores do chat, espaço para o botão de fechar nas abas |
-| `mainDlg.h/.cpp` | Abas, menu, altura fixa, páginas sem espaço vazio, sem atualização do MicroSIP, biblioteca do pjproject por arquitetura, `bcg729.lib` |
+| `mainDlg.h/.cpp` | Abas, menu, altura fixa, páginas sem espaço vazio, sem atualização do MicroSIP, aviso de versão nova, sons embutidos (`EmbeddedSoundFile`), número dos links (`CleanLinkNumber`), biblioteca do pjproject por arquitetura, `bcg729.lib` |
 | `microsip.cpp` | Menus no tema do sistema, sem relatório de travamento, sem prazo de validade |
 | `settings.cpp` | Codecs, migração `microsip.ini` → `Upphone.ini` |
-| `global.cpp` | Remove a entrada antiga "MicroSIP" da inicialização |
+| `global.cpp` | Remove a entrada antiga "MicroSIP" da inicialização, registro dos links `tel:`/`sip:`/`callto:` (`msip_uri_handlers_set`) |
 | `lib/langpack.cpp` | Langpack embutido |
-| `res/` | Ícones (app e bandeja), `langpack_portuguesebr.txt`, `main.rc2` (recursos e versão), `dialog.rc2` (layout) |
+| `res/` | Ícones (app e bandeja), `langpack_portuguesebr.txt`, sons `*.wav` (gerados por `build/gerar_sons.py`), `main.rc2` (recursos e versão), `dialog.rc2` (layout) |
 | `microsip.vcxproj` | `Upphone.exe`, defines de compatibilidade, arquivos novos |
 | `build/` | `build.ps1`, `setup.ps1`, `pins.ps1`, `release.ps1`, `Upphone.iss`, `pjproject/config_site.h`, `notas/` |
 
@@ -211,18 +220,13 @@ Em ordem de prioridade:
 
 1. **Teste de chamada real** no PABX: áudio nos dois sentidos e G.729 forçado no ramal.
 2. **Assinatura digital.** Recomendado: Microsoft Trusted Signing (Azure Artifact Signing), cerca de US$ 10 por mês e reconhecido pelo Controle Inteligente de Aplicativos. Alternativa: certificado OV/EV de uma autoridade (DigiCert, Sectigo). O `build.ps1` já assina com `-PfxPath` ou `-CertThumbprint`; com o Trusted Signing será preciso adaptar.
-3. **Escala de tela** de 150%: 100% e 125% já foram testados.
-4. **Detalhes visuais restantes** (vistos na revisão do item 27 da seção 3):
-   - botões Espera e Mudo ligados ficam em cinza do Windows, sem o laranja de destaque;
-   - teclado do diálogo Transferir com botões padrão, diferentes das teclas do discador;
-   - "Call on Local Hold" sem tradução no langpack;
-   - na barra de status, a Espera aparece sem ícone.
-5. **Integrações sugeridas:**
+3. **Integrações sugeridas:**
    - abrir a ficha do cliente quando o telefone toca: o app já tem os ganchos `cmdIncomingCall`, `cmdCallAnswer` etc., que podem chamar um webhook do n8n e, a partir dele, um CRM ou helpdesk;
-   - click-to-call (`tel:`/`sip:`);
    - provisionamento automático da conta;
    - instalação automática das versões novas (o aviso já existe, item 30 da seção 3), depois da assinatura digital.
-6. **Opcionais:** TLS/SRTP (exige OpenSSL) e Opus.
+4. **Opcionais:** TLS/SRTP (exige OpenSSL) e Opus.
+
+Os detalhes visuais da revisão do item 27, o teste em 150% e o click-to-call (`tel:`/`sip:`) foram feitos no item 31 da seção 3.
 
 ---
 

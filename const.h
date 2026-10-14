@@ -17,9 +17,9 @@
  */
 
 #pragma once
-#define _GLOBAL_VERSION "1.2.0"
-#define _GLOBAL_VERSION_COMMA 1,2,0,0
-#define _GLOBAL_TIMESTAMP 1791914400
+#define _GLOBAL_VERSION "1.3.0"
+#define _GLOBAL_VERSION_COMMA 1,3,0,0
+#define _GLOBAL_TIMESTAMP 1791925200
 #define _GLOBAL_KEY "*********"
 // #define _GLOBAL_VIDEO // desativado: pjproject compilado sem video
 #define _GLOBAL_NAME "MicroSIP"

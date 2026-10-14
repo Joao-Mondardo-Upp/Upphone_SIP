@@ -70,6 +70,11 @@ IDB_VMAIL_GREY_DOWN_175          BITMAP                  "res\\voicemail-grey-do
 
 IDB_DELETE          BITMAP                  "res\\delete.bmp"
 IDR_LANGPACK_PTBR   RCDATA                  "res\\langpack_portuguesebr.txt"
+// Upphone: standard sounds (build/gerar_sons.py); written to the local data folder when first played
+IDR_SOUND_RINGTONE  RCDATA                  "res\\ringtone.wav"
+IDR_SOUND_RINGING   RCDATA                  "res\\ringing.wav"
+IDR_SOUND_RINGING2  RCDATA                  "res\\ringing2.wav"
+IDR_SOUND_HANGUP    RCDATA                  "res\\hangup.wav"
 
 /////////////////////////////////////////////////////////////////////////////
 

@@ -35,6 +35,7 @@ protected:
     bool m_bAllowDark = true;
     //{{AFX_MSG(CThemeDialog)
     virtual BOOL OnInitDialog();
+    virtual BOOL OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult); // Upphone: icon buttons in the theme
     afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
     afx_msg void OnSettingChange(UINT uFlags, LPCTSTR lpszSection);
     //}}AFX_MSG
