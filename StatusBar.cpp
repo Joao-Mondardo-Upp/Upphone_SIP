@@ -90,7 +90,8 @@ void StatusBar::OnPaint()
 			rect.left += iconSize + pad;
 		}
 		CString text = GetPaneText(i);
-		dc.SetTextColor(i == 0 ? _GLOBAL_THEME_TEXT : _GLOBAL_THEME_TEXT2);
+		// Upphone: a call on hold in the warning color, so it is not taken for an active call
+		dc.SetTextColor(i == 0 ? (m_warning ? _GLOBAL_THEME_WARNING : _GLOBAL_THEME_TEXT) : _GLOBAL_THEME_TEXT2);
 		dc.DrawText(text, rect, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | (i == 0 ? DT_LEFT : DT_RIGHT));
 	}
 	dc.SelectObject(oldFont);

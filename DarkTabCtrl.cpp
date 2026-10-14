@@ -84,9 +84,9 @@ void CDarkTabCtrl::OnPaint()
 		GetItem(i, &tci);
 
 		if (i == sel) {
-			dc.FillSolidRect(rect, _GLOBAL_THEME_SURFACE);
+			// Upphone: active tab with accent text and underline, no fill
 			dc.FillSolidRect(CRect(rect.left, rect.bottom - line, rect.right, rect.bottom), _GLOBAL_BRAND_ACCENT);
-			dc.SetTextColor(_GLOBAL_THEME_TEXT);
+			dc.SetTextColor(_GLOBAL_BRAND_ACCENT);
 		}
 		else {
 			if (i == m_hotItem) {

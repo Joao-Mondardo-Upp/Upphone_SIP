@@ -48,6 +48,7 @@ private:
     CFont m_font;
     HICON m_hIconTransfer;
     CFont m_font_ignore;
+    CFont m_font_number; // Upphone: caller number under the name
 
     void Close(BOOL accept = FALSE);
 protected:
@@ -66,4 +67,5 @@ public:
     afx_msg void OnBnClickedDecline();
     afx_msg void OnMove(int x, int y);
     afx_msg void OnBnClickedTransfer();
+    afx_msg HBRUSH OnCtlColor(CDC* pDC, CWnd* pWnd, UINT nCtlColor);
 };

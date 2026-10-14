@@ -1,16 +1,16 @@
 # Upphone SIP: histórico e passagem do projeto
 
-Documento para continuar o trabalho em outra máquina. Resume o que foi feito no desenvolvimento das versões 1.0.0 a 1.3.0 (outubro de 2026), por que cada decisão foi tomada e o que está pendente.
+Documento para continuar o trabalho em outra máquina. Resume o que foi feito no desenvolvimento das versões 1.0.0 a 1.3.1 (outubro de 2026), por que cada decisão foi tomada e o que está pendente.
 
 - Repositório: https://github.com/Joao-Mondardo-Upp/Upphone_SIP (público)
-- Releases publicadas: [v1.3.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.3.0) (atual), [v1.2.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.2.0), [v1.1.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.1.0) e [v1.0.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.0.0)
+- Releases publicadas: [v1.3.1](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.3.1) (atual), [v1.3.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.3.0), [v1.2.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.2.0), [v1.1.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.1.0) e [v1.0.0](https://github.com/Joao-Mondardo-Upp/Upphone_SIP/releases/tag/v1.0.0)
 - Como montar o ambiente e compilar: [README.md](../README.md)
 
 ---
 
 ## 1. Estado atual
 
-**Upphone SIP 1.3.0 está publicado**, com instaladores e versões portáteis de 32 e 64 bits, compilados a partir da tag `v1.3.0` numa pasta limpa, com `build/setup.ps1` e `build/build.ps1 -Installer`. O que mudou desde a 1.0.0 está nos itens 27 a 31 da seção 3 e em `build/notas/`. A partir da 1.2.0 o app avisa sozinho quando sai uma versão nova (item 30): nas próximas releases, a seção "## O que mudou" das notas é o texto que os clientes veem no aviso.
+**Upphone SIP 1.3.1 está publicado**, com instaladores e versões portáteis de 32 e 64 bits, compilados a partir da tag `v1.3.1` numa pasta limpa, com `build/setup.ps1` e `build/build.ps1 -Installer`. O que mudou desde a 1.0.0 está nos itens 27 a 32 da seção 3 e em `build/notas/`. A partir da 1.2.0 o app avisa sozinho quando sai uma versão nova (item 30): nas próximas releases, a seção "## O que mudou" das notas é o texto que os clientes veem no aviso.
 
 | Item | Situação |
 |---|---|
@@ -136,6 +136,27 @@ Documento para continuar o trabalho em outra máquina. Resume o que foi feito no
     - **Escala de 150% testada** (monitor principal a 150% e a opção do Windows "corrigir aplicativos borrados" ligada, para o app receber o DPI novo sem sair da conta): discador, Registros, Contatos, colunas (mínimos de 120/105 px), menus, atalhos, chamada, Espera, Mudo e Transferir corretos. Corrigido: o ramal na barra de status saía cortado ("50..."), porque a largura era estimada com a fonte padrão x 0,85 e sem o espaçamento da barra (`SetPaneText2`).
     - **Sons (defeito desde a 1.0.0): a chamada recebida não tocava.** O app toca `ringtone.wav` (chamada recebida), `ringing.wav` (chamando), `ringing2.wav` (bipe de uma segunda chamada durante outra e do atendimento automático, com `localDTMF`) e `hangup.wav` (fim de chamada, com `localDTMF`) ao lado do `.exe`, mas o instalador e o portátil só levavam o `Upphone.exe`, e o app não tinha som de reserva. Agora os sons ficam embutidos no `.exe` (`IDR_SOUND_*` em `res/main.rc2`) e são gravados na subpasta `sounds` da pasta de dados local (instalado: `%LOCALAPPDATA%\Upphone SIP\sounds`; portátil: ao lado do `.exe`), regravados quando o embutido muda (`EmbeddedSoundFile` em `mainDlg.cpp`). Um `.wav` com o mesmo nome ao lado do `Upphone.exe` continua valendo como som personalizado. Os sons são próprios, gerados por `build/gerar_sons.py` (o toque é um "trim-trim"; chamando e bipes em 425 Hz, o padrão brasileiro), para não depender dos arquivos do MicroSIP, que não têm licença explícita. O desinstalador apaga a pasta `sounds`. Testado com dois apps e o PABX de teste, medindo o pico de áudio de cada processo no medidor do Windows (0 a 1). Na 1.2.0 tudo dá 0. No build novo, x64 e Win32, os picos foram: toque da chamada recebida 0,79; chamando 0,44; silêncio na chamada atendida; bipe de fim 0,52. Também foi confirmado que um `hangup.wav` próprio ao lado do `.exe` substitui o embutido e que um `ringtone.wav` corrompido na pasta `sounds` é regravado.
     - Testado com um "PABX de teste" local que atende, coloca em espera e registra o número discado: `tel:+55%20(11)%203333-4444` chegou como `sip:+551133334444@...`; `sip:` e `callto:` (com o app fechado: abre, registra e liga) também.
+32. **Ajustes visuais do design do Google Stitch** (versão 1.3.1). A descrição usada no Stitch está em `docs/STITCH.md`; do que ele gerou, só entrou o que corresponde a funções reais do app.
+    - **Cores novas na paleta** (`Theme.cpp`, macros `_GLOBAL_THEME_DANGER`, `_WARNING` e `_SUCCESS`, versões clara e escura).
+    - **Registros:** chamada perdida em vermelho (`Calls::OnCustomDrawCalls`).
+    - **Aba ativa:** texto e sublinhado laranja, sem o fundo cinza (`DarkTabCtrl.cpp`).
+    - **Chamada recebida:** número de quem liga em laranja abaixo do nome (`IDC_CALLER_NUMBER`), nome um pouco maior e os detalhes SIP em cinza.
+    - **Mudo e Espera ligados:** o ícone de 32 bits fica branco sobre o laranja (`DrawIconTinted` em `ThemeDialog.cpp`).
+    - **Barra de status em espera** em âmbar (`StatusBar::m_warning`).
+    - **Cartão de quem está na linha** (`CCallCard` em `Dialer.cpp`): durante a chamada ocupa o lugar do campo de número, com o nome, o número, os dígitos digitados (DTMF) e o estado; barra à esquerda cinza chamando, verde ativa e âmbar em espera. O campo continua por baixo, escondido, e recebe os dígitos como antes. Defeito achado no teste e corrigido antes de terminar: o cartão guardava o ponteiro temporário de `GetDlgItem` e o app fechava ao começar uma ligação; agora guarda o `HWND`.
+    - **Ícones nos menus do botão direito** de Registros e Contatos, desenhados a partir da fonte de ícones do Windows (Segoe Fluent Icons ou Segoe MDL2 Assets) na cor do tema (`ThemeMenuIcons` em `Theme.cpp`). Sem nenhuma das duas fontes, o menu fica sem ícones.
+    - **Conta:** rótulos acima dos campos, "exibir senha" na linha do rótulo da senha.
+    - **Aviso de versão nova** numa janela própria no tema (`UpdateDlg`), no lugar da caixa de mensagem do Windows. Não é modal: a janela principal continua usável se chegar uma ligação com o aviso aberto. Pedir "Verificar por atualizações" com o aviso aberto não abre outro.
+    - **Transferir:** opções Cega e Assistida na própria janela. Assistida só fica habilitada onde funciona: com o código de recurso do PABX ligado (`enableFeatureCodeAT`) ou fora do modo de chamada única. Na configuração atual (chamada única, sem código de recurso) ela aparece desabilitada; antes, escolher a transferência assistida terminava na mensagem "não disponível no modo de chamada única". Para habilitar, é preciso saber o código de transferência assistida do PABX da Upp (no Asterisk o padrão é `*2`).
+    - **Tema escuro:** opções e caixas de seleção desabilitadas tinham o texto em relevo duplicado; agora o texto é redesenhado em cinza (`DisabledCheckSubclassProc`).
+    - Testado com o PABX de teste, nos temas claro e escuro, em 100% e 125% (este monitor não aceita 150%), x64 e Win32: chamada recebida, chamando, ativa, mudo, espera, DTMF, transferência cega (REFER), fim, Registros, menus, Conta e o aviso (com uma cópia de teste marcada como 1.2.9: aparece ao abrir, não duplica, "Não" grava a versão recusada e ela não volta sozinha). Sons e links testados de novo, sem mudança.
+    - **Revisão de cada alteração e testes refeitos do zero** (build limpo, x64 e Win32, temas claro e escuro, 100% e 125%). Achados da revisão, corrigidos:
+        - **Contatos com mais de um número (defeito que já existia na 1.3.0):** o item "Chamar" vira um submenu com o ramal, o telefone e o celular, mas o submenu era um `CMenu` local destruído antes de o menu abrir, e ficava vazio. Agora ele passa a pertencer ao menu (`Detach` em `Contacts::OnContextMenu`); testado: o submenu lista os três números.
+        - `DrawIconTinted`: um ícone de 32 bits sem canal alfa sumiria do botão ligado; agora usa o desenho normal.
+        - Transferir: as opções Cega/Assistida fecham o grupo de navegação pelo teclado (`WS_GROUP` no controle seguinte).
+        - Testes que faltavam: chamada recebida **atendida** (o cartão mostra o nome e o número de quem ligou), "exibir senha" numa conta nova e a janela principal continuando na bandeja quando o aviso de versão nova aparece sozinho.
+    - Mudanças de comportamento a conhecer: durante a chamada o campo de número fica escondido atrás do cartão (os dígitos pelo teclado e pelos botões continuam indo como DTMF; só não dá para selecionar e copiar o número ali, ele está nos Registros); fechar o aviso de versão nova pelo X ou Esc conta como "Não" (a caixa de mensagem antiga não podia ser fechada sem responder).
+    - Pontos de atenção, sem mudança: o texto laranja (aba ativa, número na chamada recebida) tem contraste de cerca de 3,3:1 no tema claro, abaixo do 4,5:1 recomendado para texto pequeno; ao retomar uma chamada da espera, o cartão pode mostrar "ativa" até 1 s antes do cronômetro.
 
 ---
 

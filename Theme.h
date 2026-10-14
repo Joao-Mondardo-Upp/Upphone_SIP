@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 // Upphone: light/dark palette that follows the Windows "app mode" setting.
 
 enum ThemeColorId {
@@ -9,6 +11,9 @@ enum ThemeColorId {
 	THEME_BORDER,
 	THEME_TEXT,
 	THEME_TEXT2,
+	THEME_DANGER,  // Upphone: missed calls, end/decline
+	THEME_WARNING, // Upphone: call on hold
+	THEME_SUCCESS, // Upphone: active call
 	THEME_COLOR_COUNT
 };
 
@@ -25,3 +30,15 @@ HBRUSH ThemeBrush(ThemeColorId id);
 void ThemeSetListSort(HWND hList, int column, bool ascending);
 bool ThemeGetListSort(HWND hList, int* column, bool* ascending);
 void ThemeClearListSort(HWND hList);
+
+// Upphone: icons beside the items of a popup menu, drawn from the Windows icon font (Segoe Fluent Icons on
+// Windows 11, Segoe MDL2 Assets on Windows 10) in a given color. Keep the object alive while the menu is open:
+// it deletes the bitmaps when it goes out of scope. Without either font the menu stays without icons.
+class ThemeMenuIcons
+{
+public:
+	~ThemeMenuIcons();
+	void Set(HMENU menu, UINT item, wchar_t glyph, COLORREF color, bool byPosition = false);
+private:
+	std::vector<HBITMAP> m_bitmaps;
+};

@@ -8,6 +8,7 @@ class StatusBar : public CStatusBar
 public: 
 	StatusBar();
 	virtual ~StatusBar();
+	bool m_warning = false; // Upphone: call on hold, first pane in the warning color
 protected: 
 	DECLARE_MESSAGE_MAP()
 public: 

@@ -336,6 +336,9 @@ LRESULT Contacts::OnContextMenu(WPARAM wParam, LPARAM lParam)
 			}
 			if (numbersMenu.GetMenuItemCount() > 1) {
 				tracker->ModifyMenu(ID_CALL, MF_BYCOMMAND | MF_POPUP, (UINT_PTR)numbersMenu.m_hMenu, Translate(_T("Call")));
+				// Upphone: the submenu now belongs to the menu (destroyed with it); the local CMenu destroyed it at the
+				// end of this block, before the menu opened, and "Call" with several numbers showed nothing
+				numbersMenu.Detach();
 			}
 			//--
 			tracker->EnableMenuItem(ID_CALL, FALSE);
@@ -372,6 +375,21 @@ LRESULT Contacts::OnContextMenu(WPARAM wParam, LPARAM lParam)
 			tracker->RemoveMenu(0, MF_BYPOSITION);
 		}
 
+		// Upphone: icons beside the items (Windows icon font glyphs)
+		ThemeMenuIcons icons;
+		icons.Set(tracker->m_hMenu, ID_CALL, 0xE717, _GLOBAL_BRAND_ACCENT); // Phone
+		icons.Set(tracker->m_hMenu, ID_CALL_PICKUP, 0xE77E, _GLOBAL_THEME_TEXT2); // IncomingCall
+		icons.Set(tracker->m_hMenu, ID_ADD, 0xE8FA, _GLOBAL_THEME_TEXT2); // AddFriend
+		icons.Set(tracker->m_hMenu, ID_EDIT, 0xE70F, _GLOBAL_THEME_TEXT2); // Edit
+		icons.Set(tracker->m_hMenu, ID_COPY, 0xE8C8, _GLOBAL_THEME_TEXT2); // Copy
+		icons.Set(tracker->m_hMenu, ID_DELETE, 0xE74D, _GLOBAL_THEME_DANGER); // Delete
+		icons.Set(tracker->m_hMenu, ID_EXPORT, 0xE898, _GLOBAL_THEME_TEXT2); // Upload
+		icons.Set(tracker->m_hMenu, ID_IMPORT, 0xE896, _GLOBAL_THEME_TEXT2); // Download
+		for (int i = 0; i < tracker->GetMenuItemCount(); i++) {
+			if (tracker->GetSubMenu(i)) {
+				icons.Set(tracker->m_hMenu, i, 0xE717, _GLOBAL_BRAND_ACCENT, true); // "Call" with several numbers
+			}
+		}
 		tracker->TrackPopupMenu(0, x, y, this);
 		return TRUE;
 	}

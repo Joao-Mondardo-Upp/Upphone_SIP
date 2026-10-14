@@ -218,6 +218,10 @@ void Transfer::OnBnClickedOk()
 	if (!GetDlgItem(IDOK)->IsWindowVisible()) {
 		return;
 	}
+	// Upphone: transfer mode chosen in the window
+	if (GetDlgItem(IDC_TRANSFER_MODE_BLIND)->IsWindowVisible()) {
+		action = IsDlgButtonChecked(IDC_TRANSFER_MODE_ATTENDED) ? MSIP_ACTION_ATTENDED_TRANSFER : MSIP_ACTION_TRANSFER;
+	}
 	if (Action(action)) {
 		OnClose();
 	}
@@ -270,6 +274,19 @@ void Transfer::SetAction(msip_action action, pjsua_call_id call_id)
 	if (action == MSIP_ACTION_INVITE) {
 		SetWindowText(Translate(_T("Invite to Conference")));
 	}
+	// Upphone: Blind/Attended as options in the window (in place of the two buttons). Attended only where it works:
+	// with the PBX feature code, or outside the single call mode (MessagesDlg::CallAction)
+	bool transfer = action == MSIP_ACTION_TRANSFER || action == MSIP_ACTION_ATTENDED_TRANSFER;
+	if (transfer) {
+		bool attended = buttons || !accountSettings.singleMode;
+		SetWindowText(Translate(_T("Call Transfer")));
+		CheckRadioButton(IDC_TRANSFER_MODE_BLIND, IDC_TRANSFER_MODE_ATTENDED,
+			action == MSIP_ACTION_ATTENDED_TRANSFER && attended ? IDC_TRANSFER_MODE_ATTENDED : IDC_TRANSFER_MODE_BLIND);
+		GetDlgItem(IDC_TRANSFER_MODE_ATTENDED)->EnableWindow(attended);
+		buttons = false;
+	}
+	GetDlgItem(IDC_TRANSFER_MODE_BLIND)->ShowWindow(transfer ? SW_SHOW : SW_HIDE);
+	GetDlgItem(IDC_TRANSFER_MODE_ATTENDED)->ShowWindow(transfer ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDOK)->ShowWindow(!buttons ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_TRANSFER_ATTENDED)->ShowWindow(buttons ? SW_SHOW : SW_HIDE);
 	GetDlgItem(IDC_TRANSFER_BLIND)->ShowWindow(buttons ? SW_SHOW : SW_HIDE);

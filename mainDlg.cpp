@@ -35,6 +35,7 @@
 #include "Hid.h"
 #include "CMask.h"
 #include "Domain/Contact.h"
+#include "UpdateDlg.h"
 
 #include <winuser.h>
 #include <windows.h>
@@ -2761,6 +2762,12 @@ LRESULT CmainDlg::onCreateRingingDlg(WPARAM wParam, LPARAM lParam)
 
     CString str;
     ParseCallSIPURI(&call_info, user_data, sipuri);
+    // Upphone: the caller number under the name (hidden when the name already is the number)
+    CString callerNumber = !sipuri.user.IsEmpty() ? sipuri.user : sipuri.domain;
+    if (callerNumber == name) {
+        callerNumber.Empty();
+    }
+    ringinDlg->GetDlgItem(IDC_CALLER_NUMBER)->SetWindowText(callerNumber);
     CString info = (!sipuri.user.IsEmpty() ? sipuri.user + _T("@") : _T("")) + sipuri.domain;
     if (!sipuri.name.IsEmpty() && sipuri.name != name) {
         info = sipuri.name + _T(" <") + info + _T(">");
@@ -3077,6 +3084,9 @@ void CmainDlg::OnTimerCall()
             }
         }
         UpdateWindowText(str, icon);
+        if (call_id != PJSUA_INVALID_ID && pageDialer) {
+            pageDialer->SetCallCardState(icon == IDI_ON_HOLD ? CALL_CARD_HOLD : CALL_CARD_ACTIVE); // Upphone
+        }
     }
     else {
         KillTimer(IDT_TIMER_CALL);
@@ -4239,6 +4249,10 @@ void CmainDlg::UpdateWindowText(CString text, int icon, bool afterRegister)
     }
 #endif
 
+    if (icon != -1 && m_bar.m_warning != (icon == IDI_ON_HOLD)) {
+        m_bar.m_warning = icon == IDI_ON_HOLD; // Upphone: hold in the warning color
+        m_bar.Invalidate();
+    }
     m_bar.SetPaneText(0, str);
 
     if (icon != -1) {
@@ -6114,25 +6128,9 @@ LRESULT CmainDlg::OnUpdateCheckerLoaded(WPARAM wParam, LPARAM lParam)
                 accountSettings.checkUpdatesTime = 0;
                 return 0;
             }
-            CString caption;
-            caption.Format(_T("%s - %s"), _T(_GLOBAL_NAME_VISIBLE), Translate(_T("Update Available")));
-            // the question comes right after the version, so it is seen even when the notes are long
-            CString message;
-            message.Format(Translate(_T("Version %s is available. You are using version %s.")), version.GetString(), _T(_GLOBAL_VERSION));
-            message.AppendFormat(_T("\r\n%s"), Translate(_T("Do you want to download it now?")));
-            if (!notes.IsEmpty()) {
-                message.AppendFormat(_T("\r\n\r\n%s\r\n%s"), Translate(_T("What's new:")), notes.GetString());
-            }
-            // the automatic notice has no owner: owned by the main window it would bring it out of the tray;
-            // topmost, so it is not hidden behind other windows
-            if (::MessageBox(manual ? m_hWnd : NULL, message, caption, MB_YESNO | MB_ICONINFORMATION | MB_SETFOREGROUND | MB_TOPMOST) == IDYES) {
-                accountSettings.updatesDeclined.Empty();
-                MSIP::OpenURL(_T(_GLOBAL_UPDATES_PAGE));
-            }
-            else {
-                accountSettings.updatesDeclined = version;
-            }
-            accountSettings.GlobalSave();
+            // Upphone: notice in the app theme (UpdateDlg), modeless, so the main window stays usable while it is
+            // open; "Yes" opens the release page, "No" stores the declined version
+            UpdateDlg::Show(this, version, notes);
         }
     }
     else if (manual) {

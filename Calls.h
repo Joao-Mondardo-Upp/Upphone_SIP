@@ -84,6 +84,7 @@ public:
 	afx_msg LRESULT OnContextMenu(WPARAM wParam,LPARAM lParam);
 	afx_msg void OnNMDblclkCalls(NMHDR *pNMHDR, LRESULT *pResult);
 	afx_msg void OnEndtrack(NMHDR* pNMHDR, LRESULT* pResult);
+	afx_msg void OnCustomDrawCalls(NMHDR* pNMHDR, LRESULT* pResult); // Upphone: missed calls in red
 #ifdef _GLOBAL_VIDEO
 	afx_msg void OnMenuCallVideo(); 
 #endif

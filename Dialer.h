@@ -32,6 +32,26 @@ enum DialerActions {
 	ACTION_CALL, ACTION_VIDEO_CALL, ACTION_MESSAGE
 };
 
+// Upphone: card with who is on the line, drawn over the number field during a call. A bar on the left shows the
+// state: neutral while calling, green when active, amber on hold. The digits typed during the call (DTMF) still
+// go to the hidden number field and are shown on the card.
+enum CallCardState {
+	CALL_CARD_HIDDEN, CALL_CARD_CALLING, CALL_CARD_ACTIVE, CALL_CARD_HOLD
+};
+
+class CCallCard : public CStatic
+{
+public:
+	CString m_name;
+	CString m_number;
+	CString m_prefix; // text put in the number field for this call, the rest are digits typed during the call
+	int m_state = CALL_CARD_HIDDEN;
+	CFont* m_fontTitle = NULL;
+	CFont* m_fontText = NULL;
+	HWND m_numberField = NULL; // a handle: GetDlgItem gives a temporary CWnd, deleted at idle time
+	virtual void DrawItem(LPDRAWITEMSTRUCT lpDrawItemStruct);
+};
+
 class Dialer :
 	public CBaseDialog
 {
@@ -40,6 +60,9 @@ class Dialer :
 	CFont m_font_balance;
 	CFont m_font_call;
 	CFont m_font_shortcuts;
+	CFont m_font_card_title; // Upphone: call card
+	CFont m_font_card_text;
+	CCallCard m_callCard;
 
 	CButtonDialer m_ButtonDialer1;
 	CButtonDialer m_ButtonDialer2;
@@ -117,6 +140,9 @@ public:
 	void DialedAdd(CString number);
 	void SetNumber(CString  number, int callsCount = -1);
 	void UpdateCallButton(BOOL forse = FALSE, int callsCount = -1);
+	void SetCallCard(CString name, CString number, CString prefix, int state); // Upphone
+	void SetCallCardState(int state);
+	void ShowCallCard(bool show);
 	void Action(DialerActions action);
 	void Clear(bool update=true);
 	void TimerVuMeter();
@@ -189,6 +215,7 @@ protected:
 
 	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg void OnDestroy();
+	afx_msg void OnSize(UINT nType, int cx, int cy); // Upphone: keeps the call card over the number field
 	virtual BOOL OnInitDialog();
 	virtual void PostNcDestroy();
 	BOOL OnSetCursor(CWnd* pWnd, UINT nHitTest, UINT message);

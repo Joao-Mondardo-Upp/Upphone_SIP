@@ -22,6 +22,7 @@
 #include "microsip.h"
 
 #pragma comment(lib, "dwmapi.lib") 
+#pragma comment(lib, "msimg32.lib") // Upphone: AlphaBlend for tinted icons
 
 #ifndef DWMWA_USE_IMMERSIVE_DARK_MODE
 #define DWMWA_USE_IMMERSIVE_DARK_MODE 20
@@ -155,6 +156,60 @@ static bool IconHasAlpha(HICON icon)
     return alpha;
 }
 
+// Upphone: draws a 32-bit icon in a single color, keeping its alpha (white glyph on the accent face, like the
+// dialer keys). Returns false when the icon has no 32-bit color bitmap, so the caller can draw it as it is.
+static bool DrawIconTinted(HDC hdc, HICON icon, int x, int y, int size, COLORREF color)
+{
+    ICONINFO info = {};
+    if (!GetIconInfo(icon, &info)) {
+        return false;
+    }
+    bool ok = false;
+    BITMAP bm = {};
+    if (info.hbmColor && GetObject(info.hbmColor, sizeof(bm), &bm) && bm.bmBitsPixel == 32) {
+        int w = bm.bmWidth;
+        int h = bm.bmHeight;
+        BITMAPINFO bi = {};
+        bi.bmiHeader.biSize = sizeof(bi.bmiHeader);
+        bi.bmiHeader.biWidth = w;
+        bi.bmiHeader.biHeight = -h;
+        bi.bmiHeader.biPlanes = 1;
+        bi.bmiHeader.biBitCount = 32;
+        bi.bmiHeader.biCompression = BI_RGB;
+        void* bits = NULL;
+        HBITMAP dib = CreateDIBSection(hdc, &bi, DIB_RGB_COLORS, &bits, NULL, 0);
+        if (dib && GetDIBits(hdc, info.hbmColor, 0, h, bits, &bi, DIB_RGB_COLORS) == h) {
+            DWORD* px = (DWORD*)bits;
+            bool hasAlpha = false;
+            for (int i = 0; i < w * h; i++) {
+                DWORD a = px[i] >> 24;
+                hasAlpha = hasAlpha || a != 0;
+                // premultiplied, as AlphaBlend expects
+                px[i] = (a << 24) | ((GetRValue(color) * a / 255) << 16) | ((GetGValue(color) * a / 255) << 8) | (GetBValue(color) * a / 255);
+            }
+            // a 32-bit icon without alpha would disappear: the caller draws it as it is
+            if (hasAlpha) {
+                HDC mem = CreateCompatibleDC(hdc);
+                HGDIOBJ old = SelectObject(mem, dib);
+                BLENDFUNCTION bf = { AC_SRC_OVER, 0, 255, AC_SRC_ALPHA };
+                ok = AlphaBlend(hdc, x, y, size, size, mem, 0, 0, w, h, bf) != FALSE;
+                SelectObject(mem, old);
+                DeleteDC(mem);
+            }
+        }
+        if (dib) {
+            DeleteObject(dib);
+        }
+    }
+    if (info.hbmColor) {
+        DeleteObject(info.hbmColor);
+    }
+    if (info.hbmMask) {
+        DeleteObject(info.hbmMask);
+    }
+    return ok;
+}
+
 static bool DrawThemedIconButton(LPNMCUSTOMDRAW cd)
 {
     HWND hWnd = cd->hdr.hwndFrom;
@@ -205,7 +260,10 @@ static bool DrawThemedIconButton(LPNMCUSTOMDRAW cd)
         int x = rc.left + (rc.right - rc.left - size) / 2;
         int y = rc.top + (rc.bottom - rc.top - size) / 2;
         if (IconHasAlpha(icon)) {
-            DrawIconEx(hdc, x, y, icon, size, size, 0, NULL, DI_NORMAL);
+            // Upphone: on the accent face (Mute on) the glyph is white, the gray icon had too little contrast
+            if (!accent || !DrawIconTinted(hdc, icon, x, y, size, RGB(255, 255, 255))) {
+                DrawIconEx(hdc, x, y, icon, size, size, 0, NULL, DI_NORMAL);
+            }
         }
         else {
             HBRUSH glyph = CreateSolidBrush(accent ? RGB(255, 255, 255) : (disabled ? _GLOBAL_THEME_TEXT2 : _GLOBAL_THEME_TEXT));
@@ -214,6 +272,45 @@ static bool DrawThemedIconButton(LPNMCUSTOMDRAW cd)
         }
     }
     return true;
+}
+
+// Upphone: on the dark theme check boxes and radio buttons are unthemed (ApplyTheme), and Windows draws their
+// disabled text embossed, doubled on the black background. After Windows paints, the text is drawn again in TEXT2.
+static void DrawDisabledCheckText(HWND hWnd, HDC hdc)
+{
+    int dpi = GetDeviceCaps(hdc, LOGPIXELSY);
+    RECT rc;
+    GetClientRect(hWnd, &rc);
+    rc.left += MulDiv(14, dpi, 96); // past the check box / radio glyph
+    FillRect(hdc, &rc, ThemeBrush(THEME_BG));
+    rc.left += MulDiv(2, dpi, 96);
+    wchar_t label[256]{};
+    GetWindowTextW(hWnd, label, _countof(label));
+    HGDIOBJ oldFont = SelectObject(hdc, (HFONT)::SendMessage(hWnd, WM_GETFONT, 0, 0));
+    SetBkMode(hdc, TRANSPARENT);
+    SetTextColor(hdc, _GLOBAL_THEME_TEXT2);
+    DrawTextW(hdc, label, -1, &rc, DT_SINGLELINE | DT_VCENTER | DT_LEFT | DT_HIDEPREFIX);
+    SelectObject(hdc, oldFont);
+}
+
+static LRESULT CALLBACK DisabledCheckSubclassProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, UINT_PTR uIdSubclass, DWORD_PTR dwRefData)
+{
+    if ((uMsg == WM_PAINT || uMsg == WM_PRINTCLIENT) && ThemeIsDark() && !IsWindowEnabled(hWnd)) {
+        LRESULT result = DefSubclassProc(hWnd, uMsg, wParam, lParam);
+        HDC hdc = uMsg == WM_PRINTCLIENT ? (HDC)wParam : GetDC(hWnd);
+        DrawDisabledCheckText(hWnd, hdc);
+        if (uMsg == WM_PAINT) {
+            ReleaseDC(hWnd, hdc);
+        }
+        return result;
+    }
+    if (uMsg == WM_ENABLE) {
+        InvalidateRect(hWnd, NULL, TRUE);
+    }
+    else if (uMsg == WM_NCDESTROY) {
+        RemoveWindowSubclass(hWnd, DisabledCheckSubclassProc, uIdSubclass);
+    }
+    return DefSubclassProc(hWnd, uMsg, wParam, lParam);
 }
 
 BOOL CThemeDialog::OnNotify(WPARAM wParam, LPARAM lParam, LRESULT* pResult)
@@ -350,6 +447,7 @@ void CThemeDialog::ApplyTheme()
                 }
                 if (allowDark) {
                     if ((style & BS_TYPEMASK) == BS_AUTOCHECKBOX || (style & BS_TYPEMASK) == BS_AUTORADIOBUTTON) {
+                        SetWindowSubclass(hWnd, DisabledCheckSubclassProc, 2, 0); // Upphone: disabled text on dark
                         if (dark) {
                             SetWindowTheme(hWnd, L"wstr", L"wstr");
                         }
